@@ -1,0 +1,47 @@
+---
+description: Database access conventions using Drizzle ORM + Neon Postgres
+alwaysApply: true
+---
+
+# Drizzle ORM + Neon
+
+This project uses **Drizzle ORM** connected to a **Neon serverless Postgres** database. Never use raw SQL or other ORM libraries.
+
+## Key Files
+
+- `src/db/index.ts` — Drizzle client (import `db` from here)
+- `src/db/schema.ts` — all table definitions
+- `drizzle.config.ts` — Drizzle Kit configuration
+- `.env` — contains `DATABASE_URL` (Neon connection string)
+
+## Using the Database
+
+```typescript
+import db from "@/db"
+import { usersTable } from "@/db/schema"
+import { eq } from "drizzle-orm"
+
+// Select
+const users = await db.select().from(usersTable)
+
+// Insert
+await db.insert(usersTable).values({ name: "Alice", age: 30, email: "alice@example.com" })
+
+// Update
+await db.update(usersTable).set({ age: 31 }).where(eq(usersTable.email, "alice@example.com"))
+
+// Delete
+await db.delete(usersTable).where(eq(usersTable.email, "alice@example.com"))
+```
+
+## Schema Changes
+
+1. Edit `src/db/schema.ts`
+2. Push changes: `npx drizzle-kit push`
+   — or generate + apply migrations: `npx drizzle-kit generate` then `npx drizzle-kit migrate`
+
+## Rules
+
+- All table definitions go in `src/db/schema.ts`
+- Always use Drizzle query builder — never raw SQL strings
+- Use `process.env.DATABASE_URL` only via the centralised client in `src/db/index.ts`

@@ -1,0 +1,43 @@
+---
+description: UI component conventions using shadcn/ui
+alwaysApply: true
+---
+
+# shadcn/ui Components
+
+This project uses **shadcn/ui** for all UI elements. Never build UI components from scratch when a shadcn/ui component exists.
+
+## Setup
+
+shadcn/ui is already initialised. Components live in `src/components/ui/`.
+
+## Adding Components
+
+If a component is not yet installed, run:
+
+```bash
+npx shadcn@latest add <component-name>
+```
+
+Examples:
+```bash
+npx shadcn@latest add button
+npx shadcn@latest add card
+npx shadcn@latest add input
+npx shadcn@latest add dialog
+```
+
+## Usage
+
+Import from the `@/components/ui` alias:
+
+```tsx
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+```
+
+## Rules
+
+- Always prefer shadcn/ui components over custom-built alternatives
+- Use the `cn()` utility from `@/lib/utils` for conditional class merging
+- Do not modify files inside `src/components/ui/` directly — extend via wrapper components instead
