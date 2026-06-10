@@ -7,34 +7,62 @@
 
 # ТЕКУЩО СЪСТОЯНИЕ
 
-**Фаза:** 1 (Скелет) — завършена ✓ · следва Фаза 2 (съдържание)
+**Фаза:** 1 (Скелет + Визия) — завършена ✓ · запазена в клон `template` · следва Фаза 2 (съдържание)
 
 **Какво работи сега:**
-- Навигация, меню (desktop акордеон + mobile drawer), routing, branding
-- Home екран + двете направления (Обаждане / Среща)
-- Клонът **Обаждане → Подготовка** е с пълно реално съдържание; останалото е placeholder
+- Навигация, меню (desktop timeline sidebar + mobile drawer), routing, branding
+- HomeScreen по мокъп: тъмен хедър → плаваща светла лента → две карти (ОБАЖДАНЕ/СРЕЩА)
+- AppSidebar: тъмен фон, плаващ светъл заоблен панел, timeline с точки, EasyCredit лого долу
+- ContentRenderer + CardGrid с правилна типографска скала (12/14-16/18/24-28pt)
+- Роби: фиксиран кръгъл бутон долу вдясно (всички страници)
+- Лога: `easycredit-red.png` (светъл фон), `easycredit-white.png` (тъмен фон), `immersica-gray.png` (footer)
+- Пълно съдържание: цялото **Обаждане** (Подготовка + Стъпки + Сценарии + Типове клиенти)
+- Placeholder: **Среща** — структура готова, съдържание = Фаза 2
 - Статус: TypeScript ✓ · ESLint ✓ · `npm run dev` → http://localhost:3001
+
+**Git:**
+- Клон `template` — базова точка за клониране (тук е Фаза 1)
+- Клон `master` — чист starter; EasyCredit промени ще вървят в отделен клон или в `master` след клониране
 
 **Архитектура (3 слоя):**
 - Данни: `src/content/sales-navigator/tree.ts`
 - Тема: `src/content/sales-navigator/theme.ts` + `src/app/globals.css`
-- Двигател: `src/components/navigator/` (generic)
-- Клониране = нова `src/content/<име>/` + смяна на `activeConfig` в `src/content/index.ts`
+- Двигател: `src/components/navigator/` (generic, data-driven)
+- Клониране = нова `src/content/<проект>/` + смяна на `activeConfig` в `src/content/index.ts`
 
 **Следваща задача:**
-- Малки корекции/преглед преди "save" точка за клониране
-- После: Фаза 2 — пълно съдържание за всички екрани (от PPTX + логическо дърво)
+- Фаза 2 — пълно съдържание за Среща (от PPTX + логическото дърво)
 
 **Технически капани (важно да не се повтарят):**
 - `params` в Next.js 16 е Promise → `const { slug } = await params`
 - `SidebarMenuSubButton` (shadcn base-ui) — без `asChild`, използва `render` prop
 - Bulgarian `„текст"` в TS стрингове — вътрешните `"` се escape-ват `\"`
+- Sidebar ширина се задава в `NavigatorShell` чрез style `--sidebar-width`
+- iconMap типа е `{ className?: string }` — не поддържа `strokeWidth` директно
 
 **Подробни справки:** `docs/01-materials-reference.md` (дърво + материали) · `docs/02` и `docs/03` (Q&A решения)
 
 ---
 
 # АРХИВ (хронология — чети при нужда)
+
+### Сесия 2026-06-10 (Чат 2) — Визуални корекции по мокъп + Git save point
+
+**Искано:** Корекции преди клониране — шрифтове, лога, Роби бутон, меню без икони, английски текстове.
+
+**Направено:**
+- Шрифтове по спецификация на дизайнера (12/14-16/18/24-28pt → CSS класове `t-body`, `t-subheading`, `t-heading`, `t-home-title`)
+- HomeScreen преработен по f8.png мокъп: тъмен хедър (тясна лента), плаваща лента, карти с двуредово заглавие и pill бутони
+- AppSidebar преработен по f9.png мокъп: тъмен backdrop, плаващ светъл панел, timeline меню с dots, wider (18rem)
+- ContentRenderer: иконата вече се рендира като Lucide компонент (не като стринг "DoorOpen")
+- Лога: копирани оригиналните файлове + добавен Immersica лого в footer
+- Роби: `RobiButton.tsx` — fixed bottom-right на всички страници (layout.tsx)
+- Меню: премахнати lucide икони от sidebar елементите
+- Commit в клон `template`, push към origin → базова точка за клониране
+
+**Защо `template` клон:** Позволява клониране на скелета без да се пипа `master`. EasyCredit промени ще вървят в нов клон/master след разклоняване.
+
+---
 
 ### Сесия 2026-06 (Чат 1) — Основи
 
