@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Sofia_Sans } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { RobiButton } from "@/components/navigator/RobiButton";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const sofiaSans = Sofia_Sans({
+  variable: "--font-sans",
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Easy Credit Sales Navigator",
-  description: "Sales Navigator за кредитни консултанти на Изи Кредит",
+  title: "Навигатор за продажбени умения",
+  description: "Обучителен навигатор за продажбени умения — EasyCredit",
 };
 
 export default function RootLayout({
@@ -23,11 +21,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="bg" className={`${sofiaSans.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col">
+        <TooltipProvider>{children}</TooltipProvider>
+        <RobiButton />
+      </body>
     </html>
   );
 }
