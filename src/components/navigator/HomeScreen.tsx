@@ -100,16 +100,19 @@ export function HomeScreen() {
       className="min-h-screen flex flex-col"
       style={{ background: "linear-gradient(180deg, #eef3f8 0%, #F0F5FA 60%, #e7eef4 100%)" }}
     >
-      {/* Dark header band — tall, full width. Light pill floats inside (wide, small margins). */}
+      {/* Dark header band — pill straddles its bottom edge and sticks out downward
+          onto the light area (mirrors the menu's "dark on half" treatment). */}
       <div
-        className="w-full bg-gradient-to-b from-[#49575f] to-[#5a6772]"
-        style={{ padding: "clamp(1.5rem, 3vh, 2.75rem) clamp(1rem, 3vw, 2.75rem)" }}
+        className="flex w-full justify-center bg-gradient-to-b from-[#49575f] to-[#5a6772]"
+        style={{ padding: "clamp(2rem, 4.5vh, 3.5rem) clamp(1rem, 3vw, 2.75rem) 0" }}
       >
         <div
-          className="mx-auto rounded-2xl bg-[#cad7e0]/90 text-center shadow-inner"
+          className="rounded-2xl bg-[#cad7e0]/95 text-center shadow-[0_18px_40px_-12px_rgba(23,23,23,0.45)]"
           style={{
             maxWidth: "min(1500px, 94vw)",
+            width: "100%",
             padding: "clamp(0.85rem, 1.4vw, 1.4rem) clamp(1.5rem, 4vw, 3rem)",
+            marginBottom: "clamp(-3.25rem, -3vw, -2.25rem)",
           }}
         >
           {/* 24–28pt floor, scales with slide */}
@@ -122,8 +125,8 @@ export function HomeScreen() {
         </div>
       </div>
 
-      {/* Cards — centered group, capped width so they stay portrait (not stretched) */}
-      <main className="flex-1 flex items-center justify-center" style={{ padding: "clamp(1.5rem, 3vh, 3rem) clamp(1rem, 4vw, 3rem)" }}>
+      {/* Cards — centered group; extra top padding clears the overhanging title pill. */}
+      <main className="flex-1 flex items-center justify-center" style={{ padding: "clamp(3.5rem, 6vh, 5rem) clamp(1rem, 4vw, 3rem) clamp(1.5rem, 3vh, 3rem)" }}>
         <div
           className="w-full flex flex-col md:flex-row justify-center"
           style={{ gap: "clamp(1.5rem, 3vw, 3.5rem)", maxWidth: "min(1400px, 80vw)" }}

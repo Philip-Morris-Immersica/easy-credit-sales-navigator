@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Sofia_Sans } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RobiButton } from "@/components/navigator/RobiButton";
@@ -10,9 +11,14 @@ const sofiaSans = Sofia_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
-  title: "Навигатор за продажбени умения",
-  description: "Обучителен навигатор за продажбени умения — EasyCredit",
+  title: "Навигатор за продажбени умения — EasyCredit",
+  description: "Интерактивен обучителен навигатор за продажбени умения на EasyCredit. Шрифт: Sofia Sans. Дизайн: Easy Credit Guide (Figma).",
 };
 
 export default function RootLayout({

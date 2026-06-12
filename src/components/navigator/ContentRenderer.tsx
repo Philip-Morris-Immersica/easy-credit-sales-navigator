@@ -99,7 +99,7 @@ export function ContentRenderer({ blocks, title, icon }: ContentRendererProps) {
       {/* Page title — icon + heading */}
       <div className="flex items-center gap-3 pb-1">
         {Icon && <Icon className="h-9 w-9 shrink-0 text-primary" />}
-        <h1 className="font-bold text-foreground" style={{ fontSize: "clamp(1.5rem, 1.9vw, 1.75rem)" }}>
+        <h1 className="t-heading font-bold text-[#52626F]">
           {title}
         </h1>
       </div>

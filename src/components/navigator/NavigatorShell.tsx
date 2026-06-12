@@ -1,5 +1,4 @@
 import * as React from "react";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigator/AppSidebar";
 import { activeConfig } from "@/content";
 
@@ -12,17 +11,18 @@ export function NavigatorShell({ directionSlug, children }: NavigatorShellProps)
   const { theme } = activeConfig;
 
   return (
-    <SidebarProvider
-      defaultOpen={true}
-      style={{ "--sidebar-width": "clamp(13rem, 14vw, 17rem)" } as React.CSSProperties}
-    >
+    <div className="relative flex min-h-screen bg-background">
+      {/* Dark slate band behind the left ~half of the menu (Figma: x 0–100). */}
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 hidden w-[6.25rem] bg-[#52626F] md:block"
+        aria-hidden
+      />
+
       <AppSidebar directionSlug={directionSlug} theme={theme} />
-      <SidebarInset className="flex flex-col min-h-screen">
-        {/* Content area — padded on mobile to account for hamburger */}
-        <main className="flex-1 p-5 md:p-8 md:pt-6 pt-14">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+
+      <main className="relative z-10 min-w-0 flex-1 p-5 pt-14 md:p-8 md:pt-6">
+        {children}
+      </main>
+    </div>
   );
 }
