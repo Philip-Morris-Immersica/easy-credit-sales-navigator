@@ -1,8 +1,10 @@
 export type LayoutKind =
-  | "text"       // Heading + goal + bullet list (standard content screen)
-  | "cards"      // Grid of clickable cards (e.g. Client Types, Scenarios)
-  | "steps"      // Numbered steps with sub-items
-  | "checklist"  // Checklist items
+  | "text"        // Heading + goal + bullet list (standard content screen)
+  | "cards"       // Grid of clickable cards (e.g. Client Types, Scenarios)
+  | "steps"       // Numbered steps with sub-items
+  | "checklist"   // Checklist items
+  | "accordion"   // One-open-at-a-time accordion (e.g. Подготовка contact types)
+  | "stages"      // Vertical stage list + horizontal tab navigator on detail pages
   | "placeholder"; // Not yet filled
 
 // ─── Leaf content blocks (no nesting) ──────────────────────────────────────
@@ -75,12 +77,16 @@ export interface NavNode {
   id: string;
   slug: string;          // URL-safe English slug (e.g. "call", "preparation")
   title: string;         // Bulgarian display title
-  icon?: string;         // Lucide icon name (PascalCase)
+  icon?: string;         // Lucide icon name (PascalCase) — grey subject of the duotone icon
+  iconAccent?: string;   // Lucide icon name for the red accent (defaults per base in DuotoneIcon)
+  iconImage?: string;    // Deprecated 3D PNG path — no longer rendered (flat duotone icons used instead)
   layout: LayoutKind;
   content?: ContentBlock[];
   children?: NavNode[];
   /** For card-layout nodes: each child shows as a clickable card */
   cardDescription?: string;
+  /** For children of an accordion node: "button" renders as a footer link-button rather than an inline accordion panel */
+  renderAs?: "accordion" | "button";
 }
 
 export interface NavigatorTheme {

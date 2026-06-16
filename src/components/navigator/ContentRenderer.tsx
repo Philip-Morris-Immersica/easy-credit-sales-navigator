@@ -3,106 +3,68 @@
 import { cn } from "@/lib/utils";
 import type { ContentBlock } from "@/components/navigator/types";
 import { BlockInteractive } from "@/components/navigator/BlockInteractive";
+import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 import {
-  Info,
-  Lightbulb,
-  Wrench,
-  Users,
-  ClipboardList,
-  ListOrdered,
-  Drama,
-  UserX,
-  UserCheck,
-  RefreshCw,
-  DoorOpen,
-  Target,
-  ShieldCheck,
-  CheckCircle,
-  Heart,
-  BadgeCheck,
-  Megaphone,
-  Armchair,
-  Share2,
-  Flame,
-  BarChart2,
-  HelpCircle,
-  Ban,
-  Crown,
-  Shuffle,
-  Eye,
-  GitBranch,
-  Zap,
-  MessageCircle,
-  ArrowRightLeft,
-  Rocket,
-  Reply,
-  Search,
-  FileText,
-  Building,
-  PlusCircle,
-  Home,
-  PhoneCall,
-  MessageSquare,
+  Target, Wrench, MessageSquare, AlertCircle, ChevronRight,
+  GitBranch, ShieldCheck, Ban, List, MessageCircle, Info,
+  Compass, BookOpen, Layers, ArrowRight, Lock, Unlock,
+  Eye, EyeOff, Lightbulb, ClipboardList, ArrowRightLeft,
 } from "lucide-react";
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Phone: PhoneCall,
-  PhoneCall,
-  Users,
-  ClipboardList,
-  ListOrdered,
-  Drama,
-  Lightbulb,
-  UserX,
-  UserCheck,
-  RefreshCw,
-  DoorOpen,
-  Target,
-  ShieldCheck,
-  CheckCircle,
-  Heart,
-  BadgeCheck,
-  Megaphone,
-  Armchair,
-  Share2,
-  Flame,
-  BarChart2,
-  HelpCircle,
-  Ban,
-  Crown,
-  Shuffle,
-  Eye,
-  GitBranch,
-  Zap,
-  MessageCircle,
-  ArrowRightLeft,
-  Rocket,
-  Reply,
-  Search,
-  FileText,
-  Building,
-  PlusCircle,
-  Home,
-};
+type LucideIcon = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
+function getHeadingIcon(text: string): LucideIcon {
+  const t = text.toLowerCase();
+  if (t.includes("неосъзнати")) return EyeOff;
+  if (t.includes("осъзнати")) return Eye;
+  if (t.includes("затворени")) return Lock;
+  if (t.includes("отворени")) return Unlock;
+  if (t.includes("логика")) return GitBranch;
+  if (t.includes("обща")) return GitBranch;
+  if (t.includes("да не правиш") || t.includes("не правиш")) return Ban;
+  if (t.includes("възражени")) return ShieldCheck;
+  if (t.includes("техники")) return Wrench;
+  if (t.includes("послания") || t.includes("ключови")) return MessageSquare;
+  if (t.includes("комуникация")) return MessageCircle;
+  if (t.includes("характеристики")) return List;
+  if (t.includes("характеристика срещу") || t.includes("срещу полза")) return ArrowRightLeft;
+  if (t.includes("структура")) return Layers;
+  if (t.includes("елементи")) return Layers;
+  if (t.includes("цел") && (t.includes("представяне") || t.includes("как"))) return Target;
+  if (t.includes("включва")) return ClipboardList;
+  if (t.includes("примери")) return BookOpen;
+  if (t.includes("чеклист")) return ClipboardList;
+  if (t.includes("съвети")) return Lightbulb;
+  if (t.includes("стратеги")) return Compass;
+  if (t.includes("стъпки")) return ArrowRight;
+  if (t.includes("описание")) return Info;
+  if (t.includes("подход")) return Compass;
+  if (t.includes("важно")) return AlertCircle;
+  if (t.includes("сценари")) return BookOpen;
+  return ChevronRight;
+}
 
 interface ContentRendererProps {
   blocks: ContentBlock[];
   title: string;
   icon?: string;
+  iconAccent?: string;
+  iconImage?: string;
+  hideTitle?: boolean;
 }
 
-export function ContentRenderer({ blocks, title, icon }: ContentRendererProps) {
-  const Icon = icon ? iconMap[icon] : null;
-
+export function ContentRenderer({ blocks, title, icon, iconAccent, iconImage, hideTitle }: ContentRendererProps) {
   return (
     <div className="max-w-3xl space-y-5">
-      {/* Page title — icon + heading */}
-      <div className="flex items-center gap-3 pb-1">
-        {Icon && <Icon className="h-9 w-9 shrink-0 text-primary" />}
-        <h1 className="t-heading font-bold text-[#52626F]">
-          {title}
-        </h1>
-      </div>
+      {/* Page title — only shown when not suppressed by ScreenHeader */}
+      {!hideTitle && (
+        <div className="flex items-center gap-3 pb-1">
+          {(icon || iconImage) && <DuotoneIcon name={icon} accent={iconAccent} src={iconImage} className="h-9 w-9" />}
+          <h1 className="t-heading font-bold text-[#52626F]">
+            {title}
+          </h1>
+        </div>
+      )}
 
       {renderBlocks(blocks)}
     </div>
@@ -120,23 +82,34 @@ function Block({ block }: { block: ContentBlock }) {
 
     case "goal":
       return (
-        <p className="t-body text-foreground/80">
-          <span className="font-bold text-foreground">Цел: </span>
-          {block.text}
-        </p>
+        <div className="flex items-start gap-2.5 rounded-xl bg-primary/5 border border-primary/20 px-4 py-3">
+          <Target className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <p className="t-body text-foreground/80">
+            <span className="font-bold text-foreground">Цел: </span>
+            {block.text}
+          </p>
+        </div>
       );
 
-    case "heading":
+    case "heading": {
+      const HeadingIcon = getHeadingIcon(block.text);
       return (
-        <h2 className="t-subheading font-medium text-foreground/90 pt-1">
+        <h2 className="flex items-center gap-2 t-subheading font-bold text-foreground/90 pt-1">
+          <HeadingIcon className="h-[1.375em] w-[1.375em] shrink-0 text-primary self-center" strokeWidth={2.3} />
           {block.text}
         </h2>
       );
+    }
 
-    case "subheading":
+    case "subheading": {
+      const SubIcon = getHeadingIcon(block.text);
       return (
-        <h3 className="t-body font-semibold text-foreground/80">{block.text}</h3>
+        <h3 className="flex items-center gap-2 t-body font-bold text-foreground/90">
+          <SubIcon className="h-[1.375em] w-[1.375em] shrink-0 text-primary self-center" strokeWidth={2.3} />
+          {block.text}
+        </h3>
       );
+    }
 
     case "paragraph":
       return <p className="t-body text-foreground/80">{block.text}</p>;
@@ -145,18 +118,21 @@ function Block({ block }: { block: ContentBlock }) {
     case "checklist":
       return (
         <ul className={cn("space-y-2.5", block.type === "checklist" && "list-none")}>
-          {block.items?.map((item, i) => (
-            <li key={i} className="flex items-start gap-2.5 t-body text-foreground/80">
-              {block.type === "checklist" ? (
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-card text-xs text-foreground/40">
-                  ✓
-                </span>
-              ) : (
-                <span className="mt-[0.5rem] h-2 w-2 shrink-0 rounded-full bg-primary" />
-              )}
-              <span>{item}</span>
-            </li>
-          ))}
+          {block.items?.map((item, i) => {
+            const isNumbered = /^\d+[.)]\s/.test(item);
+            return (
+              <li key={i} className="flex items-start gap-2.5 t-body text-foreground/80">
+                {block.type === "checklist" ? (
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-card text-xs text-foreground/40">
+                    ✓
+                  </span>
+                ) : !isNumbered ? (
+                  <span className="mt-[0.5rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#49575f" }} />
+                ) : null}
+                <span>{item}</span>
+              </li>
+            );
+          })}
         </ul>
       );
 
@@ -179,9 +155,9 @@ function Block({ block }: { block: ContentBlock }) {
 
     case "note":
       return (
-        <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
-          <Info className="mt-0.5 h-5 w-5 shrink-0 text-foreground/40" />
-          <p className="t-body text-foreground/60 italic">{block.text}</p>
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+          <p className="t-body text-foreground/70 italic">{block.text}</p>
         </div>
       );
 

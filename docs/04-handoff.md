@@ -7,17 +7,19 @@
 
 # ТЕКУЩО СЪСТОЯНИЕ
 
-**Фаза:** 2 (Наливане на съдържание) — завършена u2713 · следва Фаза 3 (сценарии с flow-ове)
+**Фаза:** 2 завършена ✓ · UX Revamp завършен ✓ · следва Фаза 3 (сценарии с flow-ове)
 
 **Какво работи сега:**
 - Навигация, routing, branding, mobile drawer
 - **HomeScreen** по мокъп: тъмен хедър, плаваща светла лента, две портретни карти
-- **Нови ContentBlock типове:** `fields`, `dialogue`, `collapsible`, `tabs`, `actions` (всички рендирани)
-- **BlockInteractive.tsx** (`use client`) — Tabs (desktop) / accordion (mobile), Collapsible, бутони Тренирай/Видео
-- **ContentRenderer.tsx** — `use client`, рекурсивен; рендира всички блок-типове
-- **Обаждане** — 5 персонаж-карти; 4 пълни отговора на възражения + 4 техники с примери; Ключови послания
-- **Среща** — Отваряне (4 примера), Нужди (adaptive tabs), Предложение (характеристика vs полза), 4 сценария с транскрипти, Посещение на адрес (3 примера в tabs)
-- Злонамерен тип клиент → placeholder
+- **Подготовка → акордеон** — един-отворен-наведнъж за Студен/Топъл/Регулярен (Call) и Активен/Реактивен (Meeting); „Съвети за подготовка" е footer бутон → отделна страница
+- **Стъпки → вертикален списък + хоризонтален таб-навигатор** — „Етап N: Заглавие" на index страницата; при влизане в етап — таб-лента горе за бързо превключване между всички етапи; generic (N не е hardcoded)
+- **Сценарии и Типове клиенти** — карти с 3D икони; детайл страниците имат X/назад бутон горе вдясно
+- **Табове (Теми/Въпроси/Нужди, Пример 1/2/3)** — ясна pill/segment лента на desktop; акордеон на mobile
+- **Тренирай бутон** — стилизиран в primary/червено, без „очаквайте скоро"
+- **„Цел" блок** — Target икона + червен фон; **„Важно/Note"** — AlertCircle + жълта рамка
+- **Sidebar** — кликване на секция навигира КЪМ нея и разгъва подменюто; отделна chevron само сгъва/разгъва
+- **Икони** — двуцветни **Solar „Line Duotone"** SVG-та (сив контур #52626F + червен акцент #D6071A, удебелен щрих), свалени от Iconify и преоцветени от `scripts/gen-icons.mjs` в `public/icons2/<LucideName>.svg` (36 бр.). `DuotoneIcon.tsx` пази централен `GENERATED` set и авто-зарежда `/icons2/<name>.svg` по `icon` (Lucide име) на нода — затова в `tree.ts` НЕ се пипа нищо за икона; смяна на понятие = `icon` в tree.ts. Иконите седят **без фон** (махнати са сивите плочки `bg-muted/50` в CardGrid/StageList/PreparationAccordion/ScreenHeader). Стилът таргетира мокъп референциите (телефон+балонче, хора+среща и т.н.). Старият залепен Lucide-акцент подход и 3D Magnific иконите са изоставени. Хоумпейдж иконите (`public/icon-call.svg`, `icon-meeting.svg`) остават както са.
 - `tsc --noEmit` и ESLint → 0 грешки
 
 **Git:**
@@ -29,24 +31,59 @@
 - Тема: `src/content/sales-navigator/theme.ts` + `src/app/globals.css`
 - Двигател: `src/components/navigator/` (generic, data-driven)
 
+**Нови компоненти (UX Revamp):**
+- `PreparationAccordion.tsx` — акордеон за Подготовка
+- `StageList.tsx` — вертикален списък на Стъпки
+- `StageNav.tsx` — хоризонтален таб-навигатор в детайл на Стъпки
+- `ScreenHeader.tsx` — X/назад хедър за детайл страници
+
 **Следваща задача:**
 - Фаза 3 — интерактивни flow-ове/сценарии с разклонения (state machine / mindmap)
 - Реални видеа → замени `videoUrl: null` с реален линк
 - Чатбот Тренирай → Фаза 4
+- Икони: смяна на понятие → `icon` (Lucide име) в tree.ts; смяна на конкретна икона/дебелина/цвят → редактирай мапинга/`recolor` в `scripts/gen-icons.mjs` и пусни `node scripts/gen-icons.mjs` (пише в `public/icons2/`); ако добавиш ново Lucide име, добави го и в `GENERATED` set в `DuotoneIcon.tsx`
 
 **Технически капани:**
 - `params` в Next.js 16 е Promise → `await params`
 - `ContentRenderer` е `use client` — иначе функция не може да минава като prop към Client Component
 - Bulgarian closing quote (U+201C) в TS стрингове се escape-ва като `\"`; opening U+201E е ОК
 - PowerShell: ползвай `[System.IO.File]::ReadAllText` + `WriteAllText`; `Set-Content -NoNewline` разбива файла
-- Sidebar: `NavigatorShell` → `--sidebar-width: clamp(13rem, 14vw, 17rem)`
-- Magnific MCP: `images_generate_svg` за икони; Lucide `iconMap` за вътрешни страници
+- Икони се рендират само през `DuotoneIcon` (CardGrid, PreparationAccordion, StageList, ScreenHeader, ContentRenderer); `DuotoneIcon` рендира `<img>` от `/icons2/` ако има генериран SVG (или подаден `src`), иначе fallback към Lucide
+- base-ui `Button` НЕ поддържа `asChild` → за линк-бутон ползвай `<Link className={cn(buttonVariants(...), ...)}>` (виж footer бутона в PreparationAccordion)
 
 **Подробни справки:** `docs/01-materials-reference.md` · `docs/05-pptx-content.md` · `docs/06-otkriti-vaprosi.md`
 
 ---
 
 # АРХИВ (хронология — чети при нужда)
+
+### Сесия 2026-06-16 — UX Revamp: интерактивност, 3D икони, навигация
+
+**Искано:** Изцяло ново интерактивно изживяване по идея на дизайнера — акордеони, вертикални карти с хоризонтален таб-навигатор, детайл-екрани с X/назад, по-видими табове, Тренирай бутон ready-to-use, 3D икони за всеки нод, sidebar с двойно действие при клик.
+
+**Решения и защо:**
+- **`layout: "accordion"`** за Подготовка — запазва URL структурата на Студен/Топъл/Регулярен, но ги рендира inline в един-отворен-наведнъж акордеон вместо отделни карти
+- **`layout: "stages"`** за Стъпки — разделя index (StageList) от детайл (StageNav + ContentRenderer); `StageNav` взема siblings от parent, не hardcode-ва брой
+- **`renderAs: "button"`** на NavNode — позволява „Съвети" да са footer бутон вместо inline accordion панел, без да се мести в дървото
+- **`iconImage?: string`** на NavNode — decouples иконата от Lucide; всеки компонент проверява `iconImage` преди `icon`; позволява замяна без code промени
+- **`ScreenHeader.tsx`** — generic X/назад компонент, изчислява `backHref` от slug; ре-използваем навсякъде
+- **Sidebar двойно действие** — `Link` за навигация + отделен `<button>` за chevron; user agency запазена
+
+**Направено:**
+- `types.ts` — `LayoutKind` + `"accordion" | "stages"`; `NavNode` + `iconImage`, `renderAs`
+- `PreparationAccordion.tsx` — нов компонент за акордеон Подготовка
+- `StageList.tsx` — нов компонент: вертикален списък на Стъпки (Етап N: Заглавие + badge)
+- `StageNav.tsx` — нов компонент: хоризонтален таб-навигатор между siblings под stages parent
+- `ScreenHeader.tsx` — нов компонент: hero икона + X бутон + заглавие
+- `[...slug]/page.tsx` — разклонена логика: accordion/stages/cards layout + stages детайл (StageNav)
+- `CardGrid.tsx` — `iconImage` поддръжка в NodeIcon
+- `BlockInteractive.tsx` — Тренирай бутон: primary червен, без „очаквайте скоро"; TabsList/TabsTrigger → pill на desktop
+- `ContentRenderer.tsx` — `iconImage` prop; `goal` → Target + червен bg; `note` → AlertCircle + жълта рамка
+- `AppSidebar.tsx` — секция title = Link за навигация; chevron = отделен button само за toggle
+- `tree.ts` — `callPreparation`, `meetingPreparation` → accordion + flattened children; `callSteps`, `meetingSteps` → stages; `iconImage` добавен на всеки нод
+- **37 × 3D икони** — генерирани с Magnific `recraft-v4-1` (червен стил), свалени в `public/icons/` по групи: `contact-types/`, `approaches/`, `steps/`, `scenarios/`, `client-types/`, `sections/`, `directions/`, `common/`
+
+---
 
 ### Сесия 2026-06-11 (Чат 3) — Фаза 2: нови блокове + пълно съдържание
 
@@ -150,7 +187,7 @@
 | Фаза | Съдържание |
 |---|---|
 | **1 — Скелет** ✓ | Навигация, меню, routing, branding, един попълнен клон |
-| **2 — Съдържание** | Всички екрани с реален текст |
+| **2 — Съдържание** ✓ | Всички екрани с реален текст + UX revamp (акордеони, стъпки, 3D икони) |
 | **3 — Сценарии** | Flow-ове с разклонения (state machine), визуализация |
 | **4 — Чатбот** | Симулация (OpenAI/Anthropic) + анализ + обратна връзка |
 | **5 — Администрация** | Авторизация (3 роли), дашборд, Neon DB схеми |

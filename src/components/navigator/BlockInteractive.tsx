@@ -27,12 +27,16 @@ function TabsRenderer({ block, render }: { block: TabsBlock; render: RenderFn })
 
   return (
     <>
-      {/* Desktop: shadcn Tabs */}
+      {/* Desktop: visible pill/segment tab bar */}
       <div className="hidden sm:block">
         <Tabs defaultValue={block.tabs[0]?.label}>
-          <TabsList className="mb-4">
+          <TabsList className="mb-5 flex h-auto w-full flex-wrap gap-1 rounded-2xl bg-muted/60 p-1.5 border border-border/60">
             {block.tabs.map((tab) => (
-              <TabsTrigger key={tab.label} value={tab.label}>
+              <TabsTrigger
+                key={tab.label}
+                value={tab.label}
+                className="flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-foreground/60 transition-all data-active:bg-primary data-active:text-white data-active:shadow-sm hover:text-foreground"
+              >
                 {tab.label}
               </TabsTrigger>
             ))}
@@ -106,8 +110,8 @@ function CollapsibleRenderer({
         {block.label}
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 transition-transform text-foreground/50",
-            open && "rotate-180"
+            "h-4 w-4 shrink-0 transition-transform",
+            open ? "rotate-180 text-foreground/40" : "text-primary"
           )}
         />
       </CollapsibleTrigger>
@@ -125,15 +129,12 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
     <div className="flex flex-wrap gap-3 pt-1">
       {block.trainDisabled && (
         <Button
-          variant="outline"
+          variant="default"
           disabled
-          className="flex items-center gap-2 opacity-60 cursor-not-allowed"
+          className="flex items-center gap-2 bg-primary/90 text-white cursor-not-allowed opacity-80 hover:bg-primary/90"
         >
           <Dumbbell className="h-4 w-4" />
           Тренирай
-          <span className="ml-1 text-xs font-normal text-foreground/40">
-            (очаквайте скоро)
-          </span>
         </Button>
       )}
       {"videoUrl" in block &&
@@ -142,10 +143,7 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
             href={block.videoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 h-8",
-              "text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
-            )}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
           >
             <Video className="h-4 w-4 text-primary" />
             Видео
@@ -158,9 +156,6 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
           >
             <Video className="h-4 w-4" />
             Видео
-            <span className="ml-1 text-xs font-normal text-foreground/40">
-              (очаквайте скоро)
-            </span>
           </Button>
         ))}
     </div>

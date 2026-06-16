@@ -1,91 +1,7 @@
 import Link from "next/link";
-import {
-  Phone,
-  Users,
-  ClipboardList,
-  ListOrdered,
-  Drama,
-  Lightbulb,
-  UserX,
-  UserCheck,
-  RefreshCw,
-  DoorOpen,
-  Target,
-  ShieldCheck,
-  CheckCircle,
-  Heart,
-  BadgeCheck,
-  Megaphone,
-  Armchair,
-  Share2,
-  Flame,
-  BarChart2,
-  HelpCircle,
-  Ban,
-  Crown,
-  Shuffle,
-  Eye,
-  GitBranch,
-  Zap,
-  MessageCircle,
-  ArrowRightLeft,
-  Rocket,
-  Reply,
-  Search,
-  FileText,
-  Building,
-  PlusCircle,
-  Home,
-  PhoneCall,
-} from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 import type { NavNode } from "@/components/navigator/types";
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Phone: PhoneCall,
-  PhoneCall,
-  Users,
-  ClipboardList,
-  ListOrdered,
-  Drama,
-  Lightbulb,
-  UserX,
-  UserCheck,
-  RefreshCw,
-  DoorOpen,
-  Target,
-  ShieldCheck,
-  CheckCircle,
-  Heart,
-  BadgeCheck,
-  Megaphone,
-  Armchair,
-  Share2,
-  Flame,
-  BarChart2,
-  HelpCircle,
-  Ban,
-  Crown,
-  Shuffle,
-  Eye,
-  GitBranch,
-  Zap,
-  MessageCircle,
-  ArrowRightLeft,
-  Rocket,
-  Reply,
-  Search,
-  FileText,
-  Building,
-  PlusCircle,
-  Home,
-};
-
-function NodeIcon({ name, className }: { name?: string; className?: string }) {
-  const Icon = name ? iconMap[name] : null;
-  if (!Icon) return <span className={className} />;
-  return <Icon className={className} />;
-}
 
 interface CardGridProps {
   node: NavNode;
@@ -102,28 +18,28 @@ export function CardGrid({ node, parentSlugPath }: CardGridProps) {
           {node.content.find((b) => b.type === "goal")?.text}
         </p>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
         {children.map((child) => {
           const href = `${parentSlugPath}/${child.slug}`;
           return (
-            <Link key={child.id} href={href}>
-              <Card className="group h-full bg-card border border-border/60 rounded-2xl p-6 flex flex-col gap-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary transition-colors">
-                    <NodeIcon
-                      name={child.icon}
-                      className="h-6 w-6 text-primary group-hover:text-white transition-colors"
-                    />
-                  </div>
-                  <h3 className="t-subheading font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">
+            <Link key={child.id} href={href} className="flex">
+              <Card className="group w-full min-h-[7rem] bg-card border border-border/60 rounded-2xl px-6 flex flex-row items-center gap-5 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+                <DuotoneIcon
+                  name={child.icon}
+                  accent={child.iconAccent}
+                  src={child.iconImage}
+                  className="h-12 w-12 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="t-subheading font-bold text-foreground leading-snug group-hover:text-primary transition-colors truncate">
                     {child.title}
                   </h3>
+                  {child.cardDescription && (
+                    <p className="t-body text-foreground/55 mt-0.5 leading-snug line-clamp-1">
+                      {child.cardDescription}
+                    </p>
+                  )}
                 </div>
-                {child.cardDescription && (
-                  <p className="t-body text-foreground/55">
-                    {child.cardDescription}
-                  </p>
-                )}
               </Card>
             </Link>
           );

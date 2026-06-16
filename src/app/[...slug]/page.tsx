@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { NavigatorShell } from "@/components/navigator/NavigatorShell";
 import { ContentRenderer } from "@/components/navigator/ContentRenderer";
 import { CardGrid } from "@/components/navigator/CardGrid";
+import { PreparationAccordion } from "@/components/navigator/PreparationAccordion";
+import { StageList } from "@/components/navigator/StageList";
+import { StageNav } from "@/components/navigator/StageNav";
+import { ScreenHeader } from "@/components/navigator/ScreenHeader";
 import {
   activeConfig,
   findNodeBySlugPath,
@@ -37,21 +41,63 @@ export default async function NavigatorPage({
   if (!node) notFound();
 
   const directionSlug = slug[0];
+  const parentSlugPath = "/" + slug.join("/");
   const parentHref = "/" + slug.slice(0, -1).join("/");
 
   const hasChildren = (node.children?.length ?? 0) > 0;
   const hasContent = (node.content?.length ?? 0) > 0;
 
+  // Resolve parent node to know its layout
+  const parentNode =
+    slug.length > 1 ? findNodeBySlugPath(slug.slice(0, -1)) : null;
+  const parentLayout = parentNode?.layout ?? null;
+
   return (
     <NavigatorShell directionSlug={directionSlug}>
       {hasChildren ? (
-        <CardGrid node={node} parentSlugPath={"/" + slug.join("/")} />
+        node.layout === "accordion" ? (
+          <PreparationAccordion node={node} parentSlugPath={parentSlugPath} />
+        ) : node.layout === "stages" ? (
+          <StageList node={node} parentSlugPath={parentSlugPath} />
+        ) : (
+          <CardGrid node={node} parentSlugPath={parentSlugPath} />
+        )
       ) : hasContent ? (
-        <ContentRenderer
-          blocks={node.content!}
-          title={node.title}
-          icon={node.icon}
-        />
+        parentLayout === "stages" ? (
+          /* Stage detail page: horizontal tab nav + content */
+          <>
+            <StageNav
+              stages={parentNode!.children!}
+              parentHref={parentHref}
+            />
+            <ContentRenderer
+              blocks={node.content!}
+              title={node.title}
+              icon={node.icon}
+              iconAccent={node.iconAccent}
+              iconImage={node.iconImage}
+            />
+          </>
+        ) : (
+          /* Regular detail page: X/back header + content */
+          <>
+            <ScreenHeader
+              title={node.title}
+              icon={node.icon}
+              iconAccent={node.iconAccent}
+              iconImage={node.iconImage}
+              backHref={parentHref}
+            />
+            <ContentRenderer
+              blocks={node.content!}
+              title={node.title}
+              icon={node.icon}
+              iconAccent={node.iconAccent}
+              iconImage={node.iconImage}
+              hideTitle
+            />
+          </>
+        )
       ) : (
         <PlaceholderScreen title={node.title} parentHref={parentHref} />
       )}
@@ -68,9 +114,9 @@ function PlaceholderScreen({
 }) {
   return (
     <div className="flex flex-col gap-4 max-w-xl">
-      <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+      <ScreenHeader title={title} backHref={parentHref} />
       <div className="rounded-xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center text-sm text-foreground/50">
-        Съдържанието за тази секция ще бъде добавено в Фаза 2.
+        Съдържанието за тази секция ще бъде добавено скоро.
       </div>
     </div>
   );

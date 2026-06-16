@@ -137,8 +137,8 @@ export function HomeScreen() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="grid grid-cols-3 items-center" style={{ padding: "clamp(0.75rem, 1.5vh, 1.25rem) clamp(1.5rem, 3vw, 3rem)" }}>
+      {/* Footer — bottom padding = 1.25rem (20px) to align logo bottom with the bot widget's bottom-5 */}
+      <footer className="grid grid-cols-3 items-center" style={{ padding: "clamp(0.5rem, 1vh, 0.85rem) clamp(1.5rem, 3vw, 3rem) 1.25rem" }}>
         <div className="flex justify-start">
           <Image src={theme.logoRed} alt={theme.name} width={185} height={52} className="object-contain" priority />
         </div>
