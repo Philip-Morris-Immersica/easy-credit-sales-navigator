@@ -1,20 +1,32 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ContentBlock } from "@/components/navigator/types";
-import { BlockInteractive } from "@/components/navigator/BlockInteractive";
+import type { ContentBlock, CollapsibleBlock } from "@/components/navigator/types";
+import { BlockInteractive, CollapsibleGroupRenderer } from "@/components/navigator/BlockInteractive";
 import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 import {
   Target, Wrench, MessageSquare, AlertCircle, ChevronRight,
   GitBranch, ShieldCheck, Ban, List, MessageCircle, Info,
   Compass, BookOpen, Layers, ArrowRight, Lock, Unlock,
   Eye, EyeOff, Lightbulb, ClipboardList, ArrowRightLeft,
+  DoorOpen, Search, FileText, CheckCircle,
 } from "lucide-react";
 
 type LucideIcon = React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
 function getHeadingIcon(text: string): LucideIcon {
   const t = text.toLowerCase();
+  // ── Meeting / call stage headings — match the step icons from /meeting/steps ──
+  if (t.includes("начало") || t.includes("отваряне") || t.includes("разчупване")) return DoorOpen;
+  if (t.includes("проучване") || t.includes("идентифициране") || t.includes("определяне на нужди")) return Search;
+  if (t.includes("определяне") && t.includes("сума")) return Search;
+  if (t.includes("финализиране") || t.includes("обобщение") || t.includes("приключване")) return CheckCircle;
+  if (t.includes("затваряне") && !t.includes("затворени")) return CheckCircle;
+  if (t.includes("събиране на документи")) return ClipboardList;
+  // возражения must be checked before предложение to handle "Предложение, Възражение и отговор"
+  if (t.includes("възражени") || t.includes("справяне")) return ShieldCheck;
+  if (t.includes("представяне") || t.includes("предложение")) return FileText;
+  // ── Generic content headings ─────────────────────────────────────────────────
   if (t.includes("неосъзнати")) return EyeOff;
   if (t.includes("осъзнати")) return Eye;
   if (t.includes("затворени")) return Lock;
@@ -22,7 +34,6 @@ function getHeadingIcon(text: string): LucideIcon {
   if (t.includes("логика")) return GitBranch;
   if (t.includes("обща")) return GitBranch;
   if (t.includes("да не правиш") || t.includes("не правиш")) return Ban;
-  if (t.includes("възражени")) return ShieldCheck;
   if (t.includes("техники")) return Wrench;
   if (t.includes("послания") || t.includes("ключови")) return MessageSquare;
   if (t.includes("комуникация")) return MessageCircle;
@@ -71,9 +82,29 @@ export function ContentRenderer({ blocks, title, icon, iconAccent, iconImage, hi
   );
 }
 
-/** Renders an array of ContentBlocks — called recursively by container blocks */
+/** Renders an array of ContentBlocks — called recursively by container blocks.
+ *  Consecutive collapsible blocks at the same level are grouped into a
+ *  radio-style accordion (opening one closes the others). */
 export function renderBlocks(blocks: ContentBlock[]): React.ReactNode {
-  return blocks.map((block, i) => <Block key={i} block={block} />);
+  const result: React.ReactNode[] = [];
+  let i = 0;
+  while (i < blocks.length) {
+    if (blocks[i].type === "collapsible") {
+      const groupStart = i;
+      const group: CollapsibleBlock[] = [];
+      while (i < blocks.length && blocks[i].type === "collapsible") {
+        group.push(blocks[i] as CollapsibleBlock);
+        i++;
+      }
+      result.push(
+        <CollapsibleGroupRenderer key={groupStart} blocks={group} render={renderBlocks} />
+      );
+    } else {
+      result.push(<Block key={i} block={blocks[i]} />);
+      i++;
+    }
+  }
+  return result;
 }
 
 function Block({ block }: { block: ContentBlock }) {
@@ -136,6 +167,20 @@ function Block({ block }: { block: ContentBlock }) {
         </ul>
       );
 
+    case "numbered":
+      return (
+        <ol className="space-y-3">
+          {block.items?.map((item, i) => (
+            <li key={i} className="flex items-start gap-4">
+              <span className="mt-[0.15rem] flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#dae5ed] text-[0.8rem] font-bold text-[#52626f]" style={{boxShadow: "2px 3px 6px rgba(90,122,150,0.35), -1px -1px 4px rgba(255,255,255,0.9)"}}>
+                {i + 1}
+              </span>
+              <span className="t-body text-foreground/80 pt-[0.15rem]">{item}</span>
+            </li>
+          ))}
+        </ol>
+      );
+
     case "techniques":
       return (
         <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2">
@@ -182,12 +227,25 @@ function Block({ block }: { block: ContentBlock }) {
               {block.label}
             </div>
           )}
-          <div className="space-y-1.5 pl-1">
-            {block.lines.map((line, i) => (
-              <p key={i} className="t-body text-foreground/80 leading-relaxed">
-                {line}
-              </p>
-            ))}
+          <div className="space-y-2 pl-1">
+            {block.lines.map((line, i) => {
+              const colon = line.indexOf(":");
+              if (colon > 0 && colon < 25) {
+                const speaker = line.slice(0, colon);
+                const text = line.slice(colon + 1).trimStart();
+                return (
+                  <p key={i} className="t-body text-foreground/80 leading-relaxed">
+                    <span className="font-bold text-foreground">{speaker}:</span>{" "}
+                    {text}
+                  </p>
+                );
+              }
+              return (
+                <p key={i} className="t-body text-foreground/80 leading-relaxed">
+                  {line}
+                </p>
+              );
+            })}
           </div>
         </div>
       );

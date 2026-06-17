@@ -14,7 +14,7 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, icon, iconAccent, iconImage, backHref, className }: ScreenHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 mb-6", className)}>
+    <div className={cn("sticky top-0 z-10 bg-background flex items-start justify-between gap-4 pb-6", className)}>
       {/* Icon + title */}
       <div className="flex items-center gap-4">
         {(icon || iconImage) && (

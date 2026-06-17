@@ -80,35 +80,14 @@ function TimelineItem({ node, slugPrefix, depth, onClose, isOpen: controlledOpen
       <span className={dotClass} aria-hidden />
       {hasChildren ? (
         <>
-          {/* Title navigates to the index route; chevron toggles expansion */}
-          <div className="flex items-center justify-between gap-1">
-            <Link
-              href={href}
-              onClick={onClose}
-              className={cn(labelClass, "flex-1 py-[0.3rem] text-left")}
-              style={{ fontSize }}
-            >
-              {node.title}
-            </Link>
-            <button
-              type="button"
-              onClick={handleToggle}
-              aria-label={open ? "Свий" : "Разгъни"}
-              className="shrink-0 p-1 text-[#8a9aa5] hover:text-primary transition-colors"
-            >
-              <svg
-                className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")}
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="2,4 6,8 10,4" />
-              </svg>
-            </button>
-          </div>
+          <Link
+            href={href}
+            onClick={onClose}
+            className={cn(labelClass, "block py-[0.3rem]")}
+            style={{ fontSize }}
+          >
+            {node.title}
+          </Link>
           {open && (
             <ul className="mt-1 flex flex-col gap-0.5 pl-1">
               {node.children!.map((child) => (
@@ -183,7 +162,15 @@ function SidebarContents({
         {direction && (
           <div className="shrink-0 px-[0.9375rem] pt-5 pb-3">
             <p className="text-[1.125rem] font-normal uppercase leading-[1.3125rem] tracking-wide text-[#52626F]">
-              {direction.title}
+              {(() => {
+                const [first, ...rest] = direction.title.split(" ");
+                return (
+                  <>
+                    <span className="text-primary">{first}</span>
+                    {rest.length > 0 && " " + rest.join(" ")}
+                  </>
+                );
+              })()}
             </p>
             <span className="mt-3 block h-px w-full bg-[#aebcc6]" />
           </div>
@@ -252,7 +239,7 @@ export function AppSidebar({ directionSlug, theme }: AppSidebarProps) {
       )}
 
       {/* Desktop rail */}
-      <aside className="relative z-20 hidden w-[12.5rem] shrink-0 md:block">
+      <aside className="sticky top-0 h-screen z-20 hidden w-[12.5rem] shrink-0 md:block">
         <SidebarContents directionSlug={directionSlug} theme={theme} />
       </aside>
 

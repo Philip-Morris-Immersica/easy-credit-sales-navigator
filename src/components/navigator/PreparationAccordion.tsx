@@ -57,10 +57,8 @@ export function PreparationAccordion({ node, parentSlugPath }: Props) {
               >
                 <CollapsibleTrigger
                   className={cn(
-                    "flex w-full items-center gap-4 rounded-2xl border px-5 text-left transition-all min-h-[5rem]",
-                    isOpen
-                      ? "border-primary/40 bg-primary/5 shadow-sm"
-                      : "border-border bg-card hover:border-primary/30 hover:shadow-sm"
+                    "neu-card flex w-full items-center gap-4 rounded-2xl px-5 text-left min-h-[5rem]",
+                    isOpen && "neu-card-pressed"
                   )}
                 >
                   {/* Icon */}
@@ -110,15 +108,13 @@ export function PreparationAccordion({ node, parentSlugPath }: Props) {
               <Link
                 key={child.id}
                 href={href}
-                className="flex items-center gap-4 min-h-[5rem] rounded-2xl border border-primary/25 bg-primary/[0.07] px-5 transition-all hover:border-primary/50 hover:bg-primary/[0.12] hover:shadow-md"
+                className="neu-card neu-card-accent flex items-center gap-4 min-h-[5rem] rounded-2xl px-5"
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                  {child.icon || child.iconImage ? (
-                    <DuotoneIcon name={child.icon} accent={child.iconAccent} src={child.iconImage} className="h-8 w-8" />
-                  ) : (
-                    <Lightbulb className="h-8 w-8 text-primary" />
-                  )}
-                </div>
+                {child.icon || child.iconImage ? (
+                  <DuotoneIcon name={child.icon} accent={child.iconAccent} src={child.iconImage} className="h-12 w-12 shrink-0" />
+                ) : (
+                  <Lightbulb className="h-10 w-10 shrink-0 text-foreground/70" />
+                )}
                 <span className="t-subheading font-bold text-foreground">{child.title}</span>
               </Link>
             );

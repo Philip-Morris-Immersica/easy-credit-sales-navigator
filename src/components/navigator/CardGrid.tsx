@@ -23,7 +23,7 @@ export function CardGrid({ node, parentSlugPath }: CardGridProps) {
           const href = `${parentSlugPath}/${child.slug}`;
           return (
             <Link key={child.id} href={href} className="flex">
-              <Card className="group w-full min-h-[7rem] bg-card border border-border/60 rounded-2xl px-6 flex flex-row items-center gap-5 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+              <Card className="neu-card group w-full min-h-[7rem] rounded-2xl px-6 flex flex-row items-center gap-5 cursor-pointer ring-0 shadow-none">
                 <DuotoneIcon
                   name={child.icon}
                   accent={child.iconAccent}

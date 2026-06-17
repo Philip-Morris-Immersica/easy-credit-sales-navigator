@@ -21,7 +21,7 @@ export function StageList({ node, parentSlugPath }: StageListProps) {
 
           return (
             <Link key={stage.id} href={href}>
-              <div className="flex flex-row items-center gap-5 rounded-2xl border border-border/60 bg-white px-5 py-6 shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
+              <div className="neu-card flex flex-row items-center gap-5 rounded-2xl px-5 py-6">
                 {/* Icon */}
                 <DuotoneIcon
                   name={stage.icon}

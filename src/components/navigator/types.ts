@@ -16,6 +16,7 @@ interface ParagraphBlock  { type: "paragraph";   text: string }
 interface NoteBlock       { type: "note";        text: string }
 interface BulletsBlock    { type: "bullets";     items: string[] }
 interface ChecklistBlock  { type: "checklist";   items: string[] }
+interface NumberedBlock   { type: "numbered";    items: string[] }
 interface TechniquesBlock { type: "techniques";  text?: string; items: string[] }
 
 /** Key-value pairs — for persona metadata (Тип контакт, Персонаж, Цел…) */
@@ -32,13 +33,32 @@ export interface DialogueBlock {
   lines: string[];
 }
 
-/** Action buttons — Тренирай (disabled) + Видео (optional url) */
+/** Persona data shown in the pre-training preview popup */
+export interface PersonaData {
+  name: string;
+  contactType: string;
+  profile: string;
+  context: string;
+  goal: string;
+  conversationLogic: string;
+  sampleReplies: string[];
+  objections: string[];
+  techniques: string[];
+  nextStep: string;
+  doNotDo: string;
+}
+
+/** Action buttons — Тренирай + Видео (optional url) */
 export interface ActionsBlock {
   type: "actions";
-  /** Show disabled "Тренирай" button when true */
+  /** Bot key for the simulation; when set, "Тренирай" opens the simulation */
+  botKey?: string;
+  /** Legacy — kept for backward compat; ignored when botKey is set */
   trainDisabled?: boolean;
   /** When present shows "Видео" button; null = placeholder, string = real URL */
   videoUrl?: string | null;
+  /** When present, clicking Тренирай first shows a persona preview popup */
+  persona?: PersonaData;
 }
 
 // ─── Container blocks (nesting) ────────────────────────────────────────────
@@ -66,6 +86,7 @@ export type ContentBlock =
   | NoteBlock
   | BulletsBlock
   | ChecklistBlock
+  | NumberedBlock
   | TechniquesBlock
   | FieldsBlock
   | DialogueBlock

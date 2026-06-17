@@ -3,6 +3,8 @@ import type { Viewport } from "next";
 import { Sofia_Sans } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RobiButton } from "@/components/navigator/RobiButton";
+import { AuthProvider } from "@/components/AuthProvider";
+import { TopRightNav } from "@/components/TopRightNav";
 import "./globals.css";
 
 const sofiaSans = Sofia_Sans({
@@ -29,8 +31,11 @@ export default function RootLayout({
   return (
     <html lang="bg" className={`${sofiaSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <TooltipProvider>{children}</TooltipProvider>
-        <RobiButton />
+        <AuthProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <RobiButton />
+          <TopRightNav />
+        </AuthProvider>
       </body>
     </html>
   );

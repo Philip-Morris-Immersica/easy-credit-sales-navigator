@@ -164,6 +164,52 @@
 .shadow-xs  { box-shadow: var(--shadow-xs); }
 .shadow-2xl { box-shadow: var(--shadow-2xl); }
 
+/* ── Neumorphic card style — matches bg with bottom shadow + top highlight ── */
+.neu-card {
+  background: var(--background) !important;
+  box-shadow:
+    0 10px 20px -4px rgba(90, 122, 150, 0.45),
+    0 4px 8px  -2px rgba(90, 122, 150, 0.30),
+    inset 0 2px 1px -1px rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55) !important;
+  border: none !important;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.neu-card:hover {
+  box-shadow:
+    0 14px 28px -4px rgba(90, 122, 150, 0.55),
+    0 6px 12px -2px rgba(90, 122, 150, 0.38),
+    inset 0 2px 1px -1px rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
+  transform: translateY(-2px);
+}
+.neu-card:active {
+  box-shadow:
+    0 5px 12px -4px rgba(90, 122, 150, 0.4),
+    inset 0 2px 1px -1px rgba(255, 255, 255, 0.85) !important;
+  transform: translateY(0);
+}
+
+/* Accent variant — same neumorphic shadow, slightly different (neutral) inner fill */
+.neu-card-accent,
+.neu-card-accent:active {
+  background: var(--secondary) !important; /* soft slate #DAE5ED */
+}
+.neu-card-accent:hover {
+  background: #cddde9 !important;
+}
+
+/* Pressed / "open" state — looks pushed into the surface (for active accordions) */
+.neu-card-pressed,
+.neu-card-pressed:hover {
+  background: var(--background) !important;
+  box-shadow:
+    inset 0 3px 6px rgba(90, 122, 150, 0.4),
+    inset 0 -2px 4px rgba(255, 255, 255, 0.7) !important;
+  border: none !important;
+  transform: translateY(0) !important;
+}
+
 /* ── Card/button shadow style from mockup ── */
 .nav-button {
   background: #F0F5FA;

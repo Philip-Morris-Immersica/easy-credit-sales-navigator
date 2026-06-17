@@ -20,7 +20,7 @@ export function NavigatorShell({ directionSlug, children }: NavigatorShellProps)
 
       <AppSidebar directionSlug={directionSlug} theme={theme} />
 
-      <main className="relative z-10 min-w-0 flex-1 p-5 pt-14 md:p-8 md:pt-6">
+      <main className="relative z-10 min-w-0 flex-1 p-5 pt-14 md:p-8 md:pt-6 md:pr-20">
         {children}
       </main>
     </div>
