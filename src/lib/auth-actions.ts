@@ -61,8 +61,9 @@ export type LoginFailureReason =
   | "unknown";
 
 /**
- * Runs only after Auth.js has already rejected the credentials, to produce a
- * specific, user-friendly message. Note: distinguishing "no user" from "wrong
+ * Verifies credentials server-side and returns a specific reason on failure, so
+ * the UI can tell the user exactly what went wrong instead of relying on the
+ * (opaque) Auth.js error result. Note: distinguishing "no user" from "wrong
  * password" allows email enumeration — acceptable here for an internal tool.
  */
 export async function diagnoseLoginFailure(
@@ -82,6 +83,23 @@ export async function diagnoseLoginFailure(
   if (!valid) return { reason: "bad-password" };
 
   return { reason: "unknown" };
+}
+
+/**
+ * Reports which OAuth providers are actually configured (env vars present), so
+ * the login UI only renders buttons that can succeed.
+ */
+export async function getEnabledOAuthProviders(): Promise<{
+  google: boolean;
+  microsoft: boolean;
+}> {
+  return {
+    google: Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET),
+    microsoft: Boolean(
+      process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+        process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET
+    ),
+  };
 }
 
 export async function sendPasswordReset(email: string) {

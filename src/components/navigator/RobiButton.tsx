@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { createPortal } from "react-dom";
 import { getBotAvatar } from "@/lib/bot-avatars";
@@ -13,7 +15,18 @@ const ROBI_WELCOME =
 
 export function RobiButton() {
   const [open, setOpen] = useState(false);
+  const { status } = useSession();
+  const router = useRouter();
   const robiAvatar = getBotAvatar(ROBI_BOT_KEY) ?? "/robi.jpg";
+
+  function handleClick() {
+    // Chat requires a session — send anonymous visitors to login first.
+    if (status !== "authenticated") {
+      router.push("/login?callbackUrl=/");
+      return;
+    }
+    setOpen((o) => !o);
+  }
 
   return (
     <>
@@ -21,7 +34,7 @@ export function RobiButton() {
         aria-label="Роби — асистент"
         title="Роби — асистент"
         className={`fixed bottom-5 right-5 z-50 h-16 w-16 rounded-full overflow-hidden ring-[3px] ring-white shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.45)] hover:scale-105 transition-all duration-200 ${open ? "hidden" : ""}`}
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleClick}
       >
         <Image
           src={robiAvatar}

@@ -1,7 +1,8 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
+// Auth pages — logged-in users get bounced back to the homepage.
+const AUTH_PAGES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
@@ -19,13 +20,18 @@ export const proxy = auth((req) => {
     return NextResponse.next();
   }
 
-  // Public pages — redirect logged-in users away.
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  // Auth pages — redirect logged-in users away.
+  if (AUTH_PAGES.some((p) => pathname.startsWith(p))) {
     if (user) return NextResponse.redirect(new URL("/", req.url));
     return NextResponse.next();
   }
 
-  // Unauthenticated users: redirect to login.
+  // Public landing page — accessible without login (both anonymous and signed-in).
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
+
+  // Everything else requires auth — redirect to login, preserving the target.
   if (!user) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.href);
