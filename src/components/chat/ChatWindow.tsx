@@ -108,7 +108,7 @@ export function ChatWindow({
   }, [messages, analysis]);
 
   // Voice typing (Bulgarian) via the Web Speech API.
-  const { supported: voiceSupported, listening, interim, permission: micPermission, stop: stopVoice, toggle: toggleVoice } =
+  const { supported: voiceSupported, listening, interim, processing: voiceProcessing, permission: micPermission, stop: stopVoice, toggle: toggleVoice } =
     useSpeechRecognition({
       lang: "bg-BG",
       onFinal: (text) => {
@@ -541,7 +541,7 @@ export function ChatWindow({
                 )}
                 rows={1}
                 disabled={loading}
-                readOnly={listening}
+                readOnly={listening || voiceProcessing}
               />
               {voiceSupported && (
                 <Button
@@ -549,7 +549,7 @@ export function ChatWindow({
                   variant="ghost"
                   size="icon-sm"
                   onClick={toggleVoice}
-                  disabled={loading || micPermission === "denied"}
+                  disabled={loading || voiceProcessing || micPermission === "denied"}
                   className={cn(
                     "absolute right-1.5 bottom-1.5 rounded-lg",
                     listening
@@ -567,7 +567,13 @@ export function ChatWindow({
                   }
                   aria-label={listening ? "Спри гласовото писане" : "Гласово писане"}
                 >
-                  {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {voiceProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : listening ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
                 </Button>
               )}
             </div>
@@ -584,7 +590,13 @@ export function ChatWindow({
         {listening && (
           <p className="mt-1.5 px-1 text-[0.7rem] text-red-600 flex items-center gap-1">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
-            Слушам… говори на български
+            Записвам… говори на български, после натисни иконата за да спреш
+          </p>
+        )}
+        {voiceProcessing && !listening && (
+          <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Обработвам гласа…
           </p>
         )}
         {micPermission === "denied" && (

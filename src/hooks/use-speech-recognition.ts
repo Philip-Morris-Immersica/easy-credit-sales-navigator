@@ -2,51 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// ── Minimal ambient typings for the Web Speech API ──────────────────────────
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-interface SpeechRecognitionResult {
-  readonly length: number;
-  isFinal: boolean;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-interface SpeechRecognitionInstance extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-}
-type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionCtor;
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
-  }
-}
-
 interface UseSpeechRecognitionOptions {
+  /** Reserved for API compatibility — transcription language is fixed server-side (bg). */
   lang?: string;
   onFinal?: (text: string) => void;
 }
@@ -56,43 +13,70 @@ export type MicPermission = "unknown" | "granted" | "denied" | "unavailable";
 interface UseSpeechRecognitionReturn {
   supported: boolean;
   listening: boolean;
+  /** Live partial transcription shown while recording. */
   interim: string;
-  /** Current microphone permission state. */
+  /** True while a final transcription request is in flight after stopping. */
+  processing: boolean;
   permission: MicPermission;
   start: () => Promise<void>;
   stop: () => void;
   toggle: () => Promise<void>;
 }
 
+// How often (ms) to send the audio-so-far for a live preview transcription.
+const PARTIAL_INTERVAL_MS = 2500;
+
+function pickMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4",
+  ];
+  for (const type of candidates) {
+    if (MediaRecorder.isTypeSupported?.(type)) return type;
+  }
+  return "";
+}
+
 /**
- * Wrapper around the browser Web Speech API.
+ * Browser-independent voice typing.
  *
- * On first `start()` call, explicitly requests microphone access via
- * `getUserMedia` so the browser shows its native permission prompt. After
- * permission is granted the stream is released immediately — SpeechRecognition
- * manages its own audio capture from that point.
+ * Records microphone audio with `MediaRecorder` and sends it to the
+ * `/api/transcribe` endpoint (OpenAI speech-to-text). Unlike the Web Speech
+ * API, this behaves identically across Edge, Chrome, Firefox, Safari and
+ * mobile browsers and does not depend on the browser's built-in speech engine.
  *
- * Auto-restarts on natural session end (Chrome closes sessions after silence)
- * with a small delay to avoid InvalidStateError race conditions.
+ * While recording it periodically transcribes the audio captured so far to
+ * provide a near-real-time preview (`interim`). On stop it runs one final,
+ * higher-accuracy transcription and emits it via `onFinal`.
  */
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions = {}
 ): UseSpeechRecognitionReturn {
-  const { lang = "bg-BG", onFinal } = options;
+  const { onFinal } = options;
 
   const [supported] = useState(
     () =>
       typeof window !== "undefined" &&
-      !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+      typeof MediaRecorder !== "undefined" &&
+      !!navigator.mediaDevices?.getUserMedia &&
+      pickMimeType() !== ""
   );
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
+  const [processing, setProcessing] = useState(false);
   const [permission, setPermission] = useState<MicPermission>("unknown");
 
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onFinalRef = useRef(onFinal);
-  const wantListeningRef = useRef(false);
-  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const mimeRef = useRef<string>("");
+  const partialTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const partialBusyRef = useRef(false);
+  const stoppingRef = useRef(false);
 
   useEffect(() => {
     onFinalRef.current = onFinal;
@@ -104,140 +88,160 @@ export function useSpeechRecognition(
     navigator.permissions
       .query({ name: "microphone" as PermissionName })
       .then((status) => {
-        if (status.state === "granted") setPermission("granted");
-        else if (status.state === "denied") setPermission("denied");
-        status.onchange = () => {
+        const sync = () => {
           if (status.state === "granted") setPermission("granted");
           else if (status.state === "denied") setPermission("denied");
           else setPermission("unknown");
         };
+        sync();
+        status.onchange = sync;
       })
-      .catch(() => {/* permissions API unavailable — will check on first start() */});
+      .catch(() => {/* permissions API unavailable — will resolve on start() */});
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Ctor) return;
-
-    const recognition = new Ctor();
-    recognition.lang = lang;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interimText = "";
-      let finalText = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const transcript = result[0].transcript;
-        if (result.isFinal) finalText += transcript;
-        else interimText += transcript;
-      }
-      if (finalText) onFinalRef.current?.(finalText);
-      setInterim(interimText);
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        wantListeningRef.current = false;
-        setPermission("denied");
-        setListening(false);
-      }
-      // "no-speech" and "aborted" are benign — onend will handle restart.
-      setInterim("");
-    };
-
-    recognition.onend = () => {
-      setInterim("");
-      if (!wantListeningRef.current) {
-        setListening(false);
-        return;
-      }
-      // Delay restart slightly to avoid InvalidStateError when Chrome tears
-      // down the session while we're trying to start a new one.
-      restartTimerRef.current = setTimeout(() => {
-        if (!wantListeningRef.current) return;
-        try {
-          recognition.start();
-        } catch {
-          wantListeningRef.current = false;
-          setListening(false);
-        }
-      }, 200);
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      wantListeningRef.current = false;
-      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+  const transcribe = useCallback(
+    async (blob: Blob, final: boolean): Promise<string | null> => {
+      const form = new FormData();
+      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+      form.append("audio", blob, `audio.${ext}`);
+      form.append("model", final ? "gpt-4o-transcribe" : "gpt-4o-mini-transcribe");
       try {
-        recognition.abort();
+        const res = await fetch("/api/transcribe", { method: "POST", body: form });
+        if (!res.ok) return null;
+        const data = (await res.json()) as { text?: string };
+        return data.text?.trim() ?? "";
       } catch {
-        /* ignore */
+        return null;
       }
-      recognitionRef.current = null;
-    };
-  }, [lang]);
+    },
+    []
+  );
+
+  const cleanup = useCallback(() => {
+    if (partialTimerRef.current) {
+      clearInterval(partialTimerRef.current);
+      partialTimerRef.current = null;
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+    chunksRef.current = [];
+    partialBusyRef.current = false;
+  }, []);
 
   const start = useCallback(async () => {
-    if (!supported) return;
-    if (wantListeningRef.current) return; // already running
+    if (!supported || listening || stoppingRef.current) return;
 
-    // ── Ask for microphone permission explicitly ─────────────────────────────
-    // Only call getUserMedia when we haven't confirmed permission yet. This
-    // triggers the browser's native permission dialog. We immediately release
-    // the stream — SpeechRecognition manages its own audio session.
-    if (permission !== "granted") {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((t) => t.stop());
-        setPermission("granted");
-      } catch (err) {
-        // Only treat explicit user/policy denial as "denied".
-        // NotReadableError, AbortError, etc. mean the device is busy or
-        // unavailable — still attempt SpeechRecognition (it may succeed).
-        const name = (err as { name?: string }).name ?? "";
-        if (name === "NotAllowedError" || name === "SecurityError") {
-          setPermission("denied");
-          return;
-        }
-        // For other errors, optimistically continue — let SpeechRecognition
-        // report its own error if the mic is truly inaccessible.
-      }
-    }
-
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-
-    wantListeningRef.current = true;
+    let stream: MediaStream;
     try {
-      recognition.start();
-      setListening(true);
-    } catch {
-      wantListeningRef.current = false;
-      setListening(false);
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setPermission("granted");
+    } catch (err) {
+      const name = (err as { name?: string }).name ?? "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setPermission("denied");
+      }
+      return;
     }
-  }, [supported, permission]);
+
+    const mime = pickMimeType();
+    mimeRef.current = mime;
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+
+    streamRef.current = stream;
+    recorderRef.current = recorder;
+    chunksRef.current = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      const blob = new Blob(chunksRef.current, {
+        type: mimeRef.current || "audio/webm",
+      });
+      cleanup();
+      setListening(false);
+      setInterim("");
+
+      if (blob.size === 0) {
+        setProcessing(false);
+        return;
+      }
+      setProcessing(true);
+      const text = await transcribe(blob, true);
+      setProcessing(false);
+      if (text) onFinalRef.current?.(text);
+    };
+
+    // Collect data in 1s chunks so the cumulative blob stays a valid file
+    // (the first chunk carries the container header).
+    recorder.start(1000);
+    setInterim("");
+    setProcessing(false);
+    setListening(true);
+
+    // Periodic live preview while recording.
+    partialTimerRef.current = setInterval(async () => {
+      if (partialBusyRef.current || stoppingRef.current) return;
+      if (chunksRef.current.length === 0) return;
+      partialBusyRef.current = true;
+      const blob = new Blob(chunksRef.current, {
+        type: mimeRef.current || "audio/webm",
+      });
+      const text = await transcribe(blob, false);
+      partialBusyRef.current = false;
+      // Only apply if we're still recording (ignore late responses after stop).
+      if (text && recorderRef.current && !stoppingRef.current) {
+        setInterim(text);
+      }
+    }, PARTIAL_INTERVAL_MS);
+  }, [supported, listening, transcribe, cleanup]);
 
   const stop = useCallback(() => {
-    wantListeningRef.current = false;
-    setListening(false);
-    setInterim("");
-    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-    try {
-      recognitionRef.current?.stop();
-    } catch {
-      /* ignore */
+    const recorder = recorderRef.current;
+    if (!recorder) {
+      setListening(false);
+      setInterim("");
+      return;
     }
-  }, []);
+    stoppingRef.current = true;
+    if (partialTimerRef.current) {
+      clearInterval(partialTimerRef.current);
+      partialTimerRef.current = null;
+    }
+    try {
+      if (recorder.state !== "inactive") recorder.stop();
+    } catch {
+      cleanup();
+      setListening(false);
+      setInterim("");
+    } finally {
+      // Reset after the async onstop has had a chance to read the flag.
+      setTimeout(() => {
+        stoppingRef.current = false;
+      }, 0);
+    }
+  }, [cleanup]);
 
   const toggle = useCallback(async () => {
-    if (wantListeningRef.current) stop();
+    if (recorderRef.current) stop();
     else await start();
   }, [start, stop]);
 
-  return { supported, listening, interim, permission, start, stop, toggle };
+  // Tear down on unmount.
+  useEffect(() => {
+    return () => {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        try {
+          recorderRef.current.stop();
+        } catch {
+          /* ignore */
+        }
+      }
+      cleanup();
+    };
+  }, [cleanup]);
+
+  return { supported, listening, interim, processing, permission, start, stop, toggle };
 }
