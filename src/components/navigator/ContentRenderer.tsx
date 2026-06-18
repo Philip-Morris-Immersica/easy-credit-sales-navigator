@@ -154,7 +154,7 @@ function Block({ block }: { block: ContentBlock }) {
             return (
               <li key={i} className="flex items-start gap-2.5 t-body text-foreground/80">
                 {block.type === "checklist" ? (
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-card text-xs text-foreground/40">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-sm font-bold text-[#49575f]">
                     ✓
                   </span>
                 ) : !isNumbered ? (

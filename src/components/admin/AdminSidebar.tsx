@@ -15,6 +15,9 @@ import {
   ScrollText,
   LogOut,
   ArrowLeft,
+  DollarSign,
+  LineChart,
+  Drama,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +31,10 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Дашборд", href: "/admin", icon: LayoutDashboard },
   { label: "Разговори", href: "/admin/conversations", icon: MessageSquare },
+  { label: "Симулации", href: "/admin/simulations", icon: Drama },
   { label: "Потребители", href: "/admin/users", icon: Users },
+  { label: "Разходи", href: "/admin/expenses", icon: DollarSign },
+  { label: "Анализи", href: "/admin/analytics", icon: LineChart },
   { label: "Репорти", href: "/admin/reports", icon: BarChart2 },
   { label: "Ботове", href: "/admin/bots", icon: Bot, itOnly: true },
   { label: "База знания", href: "/admin/kb", icon: Database, itOnly: true },
@@ -85,7 +91,7 @@ export function AdminSidebar({ role }: { role: string }) {
           className="flex items-center gap-2.5 px-3 py-2 rounded-lg t-body text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
-          Към сайта
+          Към навигатора
         </Link>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

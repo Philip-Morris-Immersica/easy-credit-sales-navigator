@@ -63,7 +63,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as { role?: string }).role ?? "user";
+        // credentials: authorize() puts role on user; OAuth: role is absent → fetch from DB
+        const credentialsRole = (user as { role?: string }).role;
+        let role: string;
+        if (credentialsRole) {
+          role = credentialsRole;
+        } else {
+          const dbUser = await db
+            .select({ role: users.role })
+            .from(users)
+            .where(eq(users.id, user.id!))
+            .then((r) => r[0]);
+          role = dbUser?.role ?? "user";
+        }
+
+        // Auto-upgrade INITIAL_IT_EMAIL to "it" regardless of login method
+        const itEmail = process.env.INITIAL_IT_EMAIL?.toLowerCase();
+        if (itEmail && user.email?.toLowerCase() === itEmail && role !== "it") {
+          role = "it";
+          await db
+            .update(users)
+            .set({ role: "it" })
+            .where(eq(users.id, user.id!));
+        }
+
+        token.role = role;
         token.id = user.id;
       }
       return token;

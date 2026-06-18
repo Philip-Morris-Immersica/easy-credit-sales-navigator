@@ -9,7 +9,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { AnalysisFeedback } from "@/components/chat/AnalysisFeedback";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 function formatTime(d: Date) {
   return new Date(d).toLocaleString("bg", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -47,12 +46,19 @@ export default async function ConversationPage({
     .then((r) => r[0] ?? null);
 
   const bot = await db
-    .select({ title: bots.title })
+    .select({ title: bots.title, welcomeMessage: bots.welcomeMessage })
     .from(bots)
     .where(eq(bots.id, conv.botId))
     .then((r) => r[0]);
 
+  // Filter out system messages for transcript display
   const userMessages = msgs.filter((m) => m.role !== "system");
+
+  // Prepend the bot's first reply (welcomeMessage) if it exists and isn't already in DB
+  // The welcomeMessage is shown in the chat UI but not stored in the DB
+  const hasStoredWelcome = userMessages.length > 0 && userMessages[0].role === "assistant";
+  const firstReply = bot?.welcomeMessage?.trim() ?? "";
+  const showWelcomeAsFirst = firstReply && !hasStoredWelcome;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -75,24 +81,20 @@ export default async function ConversationPage({
           </Badge>
         </div>
 
-        {/* Analysis */}
-        {analysis && (
-          <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
-            <h2 className="t-subheading font-semibold">Анализ</h2>
-            <AnalysisFeedback analysis={{
-              overallScore: analysis.overallScore ?? 0,
-              criteria: (analysis.criteria as Array<{ name: string; score: number; comment: string }>) ?? [],
-              strengths: analysis.strengths ?? [],
-              improvements: analysis.improvements ?? [],
-              summary: analysis.summary ?? "",
-            }} />
-          </div>
-        )}
-
-        {/* Transcript */}
+        {/* Transcript — shown FIRST */}
         <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
           <h2 className="t-subheading font-semibold">Транскрипт</h2>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+            {/* Show welcomeMessage as first assistant reply if not in DB */}
+            {showWelcomeAsFirst && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] rounded-2xl px-4 py-2.5 t-body bg-muted text-foreground rounded-bl-sm">
+                  <div className="mb-0.5 text-xs opacity-60">Клиент</div>
+                  {firstReply}
+                </div>
+              </div>
+            )}
+
             {userMessages.map((msg) => (
               <div
                 key={msg.id}
@@ -114,11 +116,26 @@ export default async function ConversationPage({
                 </div>
               </div>
             ))}
-            {userMessages.length === 0 && (
+
+            {userMessages.length === 0 && !showWelcomeAsFirst && (
               <p className="text-muted-foreground t-body text-center py-4">Няма съобщения.</p>
             )}
           </div>
         </div>
+
+        {/* Analysis — shown AFTER transcript */}
+        {analysis && (
+          <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
+            <h2 className="t-subheading font-semibold">Анализ</h2>
+            <AnalysisFeedback analysis={{
+              overallScore: analysis.overallScore ?? 0,
+              criteria: (analysis.criteria as Array<{ name: string; score: number; comment: string }>) ?? [],
+              strengths: analysis.strengths ?? [],
+              improvements: analysis.improvements ?? [],
+              summary: analysis.summary ?? "",
+            }} />
+          </div>
+        )}
       </div>
     </div>
   );

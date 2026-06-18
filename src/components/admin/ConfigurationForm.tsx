@@ -5,8 +5,21 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle2, Plus, Trash2, Sparkles } from "lucide-react";
 import type { ModelPricing } from "@/db/schema";
+
+const DEFAULT_MODELS: ModelPricing[] = [
+  { model: "gpt-4.1", inputPer1k: 0.002, outputPer1k: 0.008 },
+  { model: "gpt-4.1-mini", inputPer1k: 0.0004, outputPer1k: 0.0016 },
+  { model: "gpt-4.1-nano", inputPer1k: 0.0001, outputPer1k: 0.0004 },
+  { model: "gpt-4.5", inputPer1k: 0.075, outputPer1k: 0.15 },
+  { model: "gpt-4.5-mini", inputPer1k: 0.002, outputPer1k: 0.008 },
+  { model: "gpt-4o", inputPer1k: 0.0025, outputPer1k: 0.01 },
+  { model: "gpt-4o-mini", inputPer1k: 0.00015, outputPer1k: 0.0006 },
+  { model: "o4-mini", inputPer1k: 0.0011, outputPer1k: 0.0044 },
+  { model: "gpt-5.4", inputPer1k: 0.005, outputPer1k: 0.02 },
+  { model: "gpt-5.4-mini", inputPer1k: 0.001, outputPer1k: 0.004 },
+];
 
 interface ConfigurationFormProps {
   initialPricing: ModelPricing[];
@@ -30,6 +43,14 @@ export function ConfigurationForm({ initialPricing }: ConfigurationFormProps) {
     if (!newModel.trim()) return;
     setPricing(prev => [...prev, { model: newModel.trim(), inputPer1k: parseFloat(newIn) || 0, outputPer1k: parseFloat(newOut) || 0 }]);
     setNewModel(""); setNewIn("0"); setNewOut("0");
+    setSaved(false);
+  }
+
+  function addMissingDefaults() {
+    const existing = new Set(pricing.map(p => p.model));
+    const missing = DEFAULT_MODELS.filter(m => !existing.has(m.model));
+    if (missing.length === 0) return;
+    setPricing(prev => [...prev, ...missing]);
     setSaved(false);
   }
 
@@ -120,6 +141,22 @@ export function ConfigurationForm({ initialPricing }: ConfigurationFormProps) {
           </Button>
         </div>
       </div>
+
+      {/* Add missing default models */}
+      {DEFAULT_MODELS.some(m => !pricing.find(p => p.model === m.model)) && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="t-small font-medium text-blue-800">Липсващи стандартни модели</p>
+            <p className="t-small text-blue-600">
+              {DEFAULT_MODELS.filter(m => !pricing.find(p => p.model === m.model)).map(m => m.model).join(", ")}
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={addMissingDefaults} className="gap-1.5 shrink-0">
+            <Sparkles className="h-3.5 w-3.5" />
+            Добави
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={saving} className="gap-2">

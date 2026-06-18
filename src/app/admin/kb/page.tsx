@@ -3,6 +3,7 @@ import db from "@/db";
 import { knowledgeChunks } from "@/db/schema";
 import { count, eq } from "drizzle-orm";
 import { KBIngestButton } from "@/components/admin/KBIngestButton";
+import { KBEditor } from "@/components/admin/KBEditor";
 
 export default async function AdminKBPage() {
   await requireIT();
@@ -21,12 +22,13 @@ export default async function AdminKBPage() {
     .then((r) => r[0] ?? null);
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8 max-w-5xl">
       <div>
         <h1 className="t-heading font-bold">База знания</h1>
         <p className="t-body text-muted-foreground">Управление на индексирано съдържание</p>
       </div>
 
+      {/* Status */}
       <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
         <h2 className="t-subheading font-semibold">Статус</h2>
         <div className="grid grid-cols-3 gap-4">
@@ -43,14 +45,30 @@ export default async function AdminKBPage() {
         </div>
       </div>
 
+      {/* Reindex — clearly explained */}
       <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
-        <h2 className="t-subheading font-semibold">Индексиране</h2>
-        <p className="t-body text-muted-foreground">
-          Преиндексирай цялото съдържание от <code className="bg-muted px-1 rounded">tree.ts</code>.
-          Изтрива старите чанкове и генерира нови с embedding векторите.
-          Изисква конфигуриран <code className="bg-muted px-1 rounded">OPENAI_API_KEY</code>.
-        </p>
+        <h2 className="t-subheading font-semibold">Реиндексиране</h2>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 space-y-1">
+          <p className="font-semibold">Какво прави реиндексирането?</p>
+          <ul className="list-disc list-inside space-y-0.5 text-amber-700">
+            <li>Чете текущото съдържание от <code className="bg-amber-100 px-1 rounded">tree.ts</code></li>
+            <li>Изтрива старите чанкове от базата данни</li>
+            <li>Генерира нови embedding вектори чрез OpenAI (ако е конфигуриран API ключ)</li>
+            <li>Записва новите чанкове — консултантският бот ще ги ползва за отговори</li>
+          </ul>
+          <p className="mt-2 font-medium text-amber-800">Трябва да реиндексираш само след промяна на tree.ts.</p>
+        </div>
         <KBIngestButton />
+      </div>
+
+      {/* File viewer/editor */}
+      <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
+        <h2 className="t-subheading font-semibold">Съдържание на tree.ts</h2>
+        <p className="t-small text-muted-foreground">
+          Файлът съдържа структурираното съдържание на обучението. Може да го прегледаш и редактираш директно.
+          След редакция натисни „Запази файла", а след това „Реиндексирай" за да влязат в сила промените в бота.
+        </p>
+        <KBEditor />
       </div>
     </div>
   );

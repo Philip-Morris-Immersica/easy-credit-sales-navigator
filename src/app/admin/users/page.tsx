@@ -1,10 +1,10 @@
 import { requireAdmin } from "@/lib/auth-helpers";
 import db from "@/db";
-import { users, conversations, messages, analyses } from "@/db/schema";
-import { eq, count, sum, max, gte } from "drizzle-orm";
+import { users, conversations } from "@/db/schema";
+import { eq, count } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AdminUserRoleForm } from "@/components/admin/AdminUserRoleForm";
+import Link from "next/link";
 
 function formatDate(d: Date | null) {
   if (!d) return "—";
@@ -12,9 +12,7 @@ function formatDate(d: Date | null) {
 }
 
 export default async function AdminUsersPage() {
-  const actor = await requireAdmin();
-
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  await requireAdmin();
 
   const rows = await db
     .select({
@@ -42,7 +40,7 @@ export default async function AdminUsersPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/40">
             <tr>
-              {["Потребител", "Роля", "Разговори", "Последна активност", "Регистрация"].map((h) => (
+              {["Потребител", "Роля", "Разговори", "Последна активност", "Регистрация", ""].map((h) => (
                 <th key={h} className="text-left px-4 py-3 t-small font-semibold text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -63,9 +61,17 @@ export default async function AdminUsersPage() {
                     {row.role}
                   </Badge>
                 </td>
-                <td className="px-4 py-3">{row.convCount}</td>
+                <td className="px-4 py-3 font-medium">{row.convCount}</td>
                 <td className="px-4 py-3 t-small text-muted-foreground">{formatDate(row.lastActiveAt)}</td>
                 <td className="px-4 py-3 t-small text-muted-foreground">{formatDate(row.createdAt)}</td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/admin/users/${row.id}`}
+                    className="text-primary hover:underline t-small"
+                  >
+                    Детайли →
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

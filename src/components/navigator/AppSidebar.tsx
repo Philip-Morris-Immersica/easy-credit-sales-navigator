@@ -83,6 +83,7 @@ function TimelineItem({ node, slugPrefix, depth, onClose, isOpen: controlledOpen
           <Link
             href={href}
             onClick={onClose}
+            aria-current={active ? "page" : undefined}
             className={cn(labelClass, "block py-[0.3rem]")}
             style={{ fontSize }}
           >
@@ -106,6 +107,7 @@ function TimelineItem({ node, slugPrefix, depth, onClose, isOpen: controlledOpen
         <Link
           href={href}
           onClick={onClose}
+          aria-current={active ? "page" : undefined}
           className={cn(labelClass, "block py-[0.3rem]")}
           style={{ fontSize }}
         >
@@ -139,11 +141,54 @@ function SidebarContents({
   }, [direction, directionSlug, pathname]);
 
   const [openSectionId, setOpenSectionId] = React.useState<string | null>(getActiveSectionId);
+  const navRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
     const found = getActiveSectionId();
     if (found) setOpenSectionId(found);
   }, [pathname, getActiveSectionId]);
+
+  // Scroll the nav so the open section header is at the top, keeping all items visible
+  React.useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    // Wait for the section to expand before measuring
+    const timer = setTimeout(() => {
+      const activeEl = nav.querySelector<HTMLElement>("a[aria-current='page']");
+      if (!activeEl) return;
+
+      // Walk up to find the top-level <li> inside the nav's direct <ul>
+      const rootUl = nav.querySelector<HTMLElement>(":scope > ul");
+      let sectionLi: HTMLElement | null = activeEl.parentElement;
+      while (sectionLi && sectionLi.parentElement !== rootUl) {
+        sectionLi = sectionLi.parentElement;
+      }
+      const scrollTarget = sectionLi ?? activeEl;
+
+      const navRect = nav.getBoundingClientRect();
+      const targetRect = scrollTarget.getBoundingClientRect();
+      const activeRect = activeEl.getBoundingClientRect();
+
+      const sectionFitsInNav = targetRect.height <= navRect.height;
+
+      if (sectionFitsInNav) {
+        // The whole section fits — scroll so the section header is at the top
+        const targetIsVisible =
+          targetRect.top >= navRect.top && targetRect.bottom <= navRect.bottom;
+        if (!targetIsVisible) {
+          scrollTarget.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+      } else {
+        // Section is taller than nav — just ensure the active item is visible
+        const activeIsVisible =
+          activeRect.top >= navRect.top && activeRect.bottom <= navRect.bottom;
+        if (!activeIsVisible) {
+          activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
   return (
     <div className="relative h-full">
@@ -159,25 +204,37 @@ function SidebarContents({
 
       {/* Gray panel */}
       <div className="absolute left-[1.3125rem] top-[5.5625rem] bottom-[2.1875rem] flex w-[10.375rem] flex-col overflow-hidden rounded-[1.375rem] bg-[#DAE5ED] shadow-[0px_50px_50px_-25px_rgba(23,23,23,0.4)]">
-        {direction && (
-          <div className="shrink-0 px-[0.9375rem] pt-5 pb-3">
-            <p className="text-[1.125rem] font-normal uppercase leading-[1.3125rem] tracking-wide text-[#52626F]">
-              {(() => {
-                const [first, ...rest] = direction.title.split(" ");
-                return (
-                  <>
-                    <span className="text-primary">{first}</span>
-                    {rest.length > 0 && " " + rest.join(" ")}
-                  </>
-                );
-              })()}
-            </p>
-            <span className="mt-3 block h-px w-full bg-[#aebcc6]" />
+        {/* Direction tab switcher */}
+        <div className="shrink-0 px-[0.6875rem] pt-4 pb-3">
+          <div className="flex gap-1 rounded-xl bg-[#c5d3dc] p-[3px]">
+            {activeConfig.directions.map((dir) => {
+              const isActive = dir.slug === directionSlug;
+              const label = dir.slug === "call" ? "ОБАЖДАНЕ" : "СРЕЩА";
+              const href = "/" + dir.slug;
+              return (
+                <Link
+                  key={dir.slug}
+                  href={href}
+                  className={cn(
+                    "flex-1 rounded-[0.5rem] py-[0.3rem] text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide transition-all duration-150",
+                    isActive
+                      ? "bg-white text-primary shadow-sm"
+                      : "text-[#52626F] hover:bg-white/50 hover:text-primary cursor-pointer"
+                  )}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
-        )}
+          <span className="mt-3 block h-px w-full bg-[#aebcc6]" />
+        </div>
 
         {/* Accordion nav */}
-        <nav className="timeline-scroll min-h-0 flex-1 overflow-y-auto pl-[0.5rem] pr-[0.625rem] pb-2">
+        <nav
+          ref={navRef}
+          className="timeline-scroll min-h-0 flex-1 overflow-y-auto pl-[0.5rem] pr-[0.625rem] pb-2"
+        >
           <ul className="flex flex-col gap-1 py-1 pl-0">
             {direction?.children?.map((section) => (
               <TimelineItem

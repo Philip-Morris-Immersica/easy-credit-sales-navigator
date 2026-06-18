@@ -11,20 +11,51 @@ import {
 type Period = "today" | "7d" | "30d" | "all";
 
 interface ReportData {
-  summary?: { newUsers: number; conversations: number; messages: number; totalCost: number };
-  activeUsers?: Array<{ name: string; email: string; conversations: number; messages: number; cost: number }>;
-  languageBreakdown?: Array<{ language: string; conversations: number; messages: number; cost: number }>;
-  modelBreakdown?: Array<{ model: string; messages: number; tokensIn: number; tokensOut: number; cost: number }>;
-  transcripts?: Array<{ conversationId: string; userEmail: string; botTitle: string; startedAt: string; messages: Array<{ role: string; content: string }> }>;
+  error?: string;
+  summary?: {
+    newUsers: number;
+    conversations: number;
+    messages: number;
+    analyses: number;
+    totalCost: number;
+  };
+  activeUsers?: Array<{
+    name: string; email: string; conversations: number;
+    messages: number; tokensIn: number; tokensOut: number; cost: number;
+  }>;
+  analyses?: Array<{
+    user: string; email: string; bot: string; date: string;
+    overallScore: number | null; summary: string; strengths: string; improvements: string;
+  }>;
 }
 
 const INCLUDES = [
-  { key: "summary", label: "Обобщение на периода", desc: "Нови потребители, разговори, токени, разход" },
-  { key: "activeUsers", label: "Активни потребители в периода", desc: "Всички с активност, сортирани" },
-  { key: "languageBreakdown", label: "Разбивка по език", desc: "Разговори, съобщения и разход по език" },
-  { key: "modelBreakdown", label: "Разбивка по модел", desc: "Съобщения, токени и разход по AI модел" },
-  { key: "transcripts", label: "Транскрипти на чатове", desc: "Пълно съдържание — увеличава файла значително", heavy: true },
-  { key: "anonymize", label: "Анонимизиране", desc: "Замества имена/имейли с User #ID в експорта" },
+  {
+    key: "summary",
+    label: "Обобщение на периода",
+    desc: "Нови потребители, разговори, съобщения, анализи, разход",
+  },
+  {
+    key: "activeUsers",
+    label: "Потребители с разходи",
+    desc: "Разговори, съобщения, токени и разход по потребител",
+  },
+  {
+    key: "analyses",
+    label: "Анализи",
+    desc: "Оценки, обобщения, силни страни и области за подобрение",
+  },
+  {
+    key: "transcripts",
+    label: "Транскрипти на чатове",
+    desc: "Пълен диалог на всеки разговор — увеличава файла значително",
+    heavy: true,
+  },
+  {
+    key: "anonymize",
+    label: "Анонимизиране",
+    desc: "Замества имена/имейли с User #ID",
+  },
 ] as const;
 
 export function ReportsClient() {
@@ -34,10 +65,11 @@ export function ReportsClient() {
   });
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [includes, setIncludes] = useState<Set<string>>(
-    new Set(["summary", "activeUsers", "languageBreakdown", "modelBreakdown"])
+    new Set(["summary", "activeUsers", "analyses"])
   );
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function toggleInclude(key: string) {
     setIncludes((prev) => {
@@ -61,16 +93,18 @@ export function ReportsClient() {
 
   async function generateReport() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/admin/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ from, to, includes: Array.from(includes) }),
       });
-      const data = await res.json();
-      setReportData(data);
+      const data: ReportData = await res.json();
+      if (data.error) setError(data.error);
+      else setReportData(data);
     } catch (e) {
-      alert("Грешка: " + e);
+      setError("Грешка при генериране: " + String(e));
     } finally {
       setLoading(false);
     }
@@ -78,12 +112,18 @@ export function ReportsClient() {
 
   async function exportXLSX() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/admin/reports/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ from, to, includes: Array.from(includes) }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Неизвестна грешка" }));
+        setError(err.error ?? "Грешка при експорт");
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -92,7 +132,7 @@ export function ReportsClient() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert("Грешка при експорт: " + e);
+      setError("Грешка при експорт: " + String(e));
     } finally {
       setLoading(false);
     }
@@ -102,7 +142,7 @@ export function ReportsClient() {
     <div className="space-y-8">
       <div>
         <h1 className="t-heading font-bold">Репорти</h1>
-        <p className="t-body text-muted-foreground">Генерирай и експортирай данни</p>
+        <p className="t-body text-muted-foreground">Генерирай и свали Excel доклад за ръководството</p>
       </div>
 
       {/* Period */}
@@ -110,17 +150,12 @@ export function ReportsClient() {
         <h2 className="t-subheading font-semibold">1. Период</h2>
         <div className="flex gap-2 flex-wrap">
           {(["today", "7d", "30d", "all"] as Period[]).map((p) => (
-            <Button
-              key={p}
-              size="sm"
-              variant={period === p ? "default" : "outline"}
-              onClick={() => setPeriodPreset(p)}
-            >
+            <Button key={p} size="sm" variant={period === p ? "default" : "outline"} onClick={() => setPeriodPreset(p)}>
               {p === "today" ? "Днес" : p === "7d" ? "7д" : p === "30d" ? "30д" : "Всичко"}
             </Button>
           ))}
         </div>
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center flex-wrap">
           <div className="space-y-1">
             <Label className="t-small">От</Label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
@@ -155,109 +190,132 @@ export function ReportsClient() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Button onClick={generateReport} disabled={loading} className="gap-2">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
-          Генерирай репорт
+          Преглед в браузъра
         </Button>
         <Button onClick={exportXLSX} disabled={loading} variant="outline" className="gap-2">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Експорт XLSX
+          Свали Excel (.xlsx)
         </Button>
       </div>
 
-      {/* Report visualization */}
-      {reportData && (
+      {/* Error */}
+      {error && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 text-destructive t-body">
+          {error}
+        </div>
+      )}
+
+      {/* Preview */}
+      {reportData && !reportData.error && (
         <div className="space-y-6">
+
           {/* Summary */}
           {reportData.summary && (
             <div className="bg-white rounded-2xl border border-border p-6">
               <h2 className="t-subheading font-semibold mb-4">Обобщение</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {[
                   { label: "Нови потребители", value: reportData.summary.newUsers },
                   { label: "Разговори", value: reportData.summary.conversations },
                   { label: "Съобщения", value: reportData.summary.messages },
-                  { label: "Разход", value: `$${reportData.summary.totalCost.toFixed(4)}` },
+                  { label: "Анализи", value: reportData.summary.analyses },
+                  { label: "Разход (USD)", value: `$${reportData.summary.totalCost.toFixed(6)}` },
                 ].map((s) => (
-                  <div key={s.label} className="text-center">
+                  <div key={s.label} className="text-center bg-muted/20 rounded-xl p-3">
                     <div className="t-heading font-bold">{s.value}</div>
-                    <div className="t-small text-muted-foreground">{s.label}</div>
+                    <div className="t-small text-muted-foreground mt-0.5">{s.label}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Language breakdown chart */}
-          {reportData.languageBreakdown && reportData.languageBreakdown.length > 0 && (
-            <div className="bg-white rounded-2xl border border-border p-6">
-              <h2 className="t-subheading font-semibold mb-4">Разбивка по език</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={reportData.languageBreakdown}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="language" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="conversations" fill="#D6071A" name="Разговори" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Model breakdown */}
-          {reportData.modelBreakdown && reportData.modelBreakdown.length > 0 && (
-            <div className="bg-white rounded-2xl border border-border p-6">
-              <h2 className="t-subheading font-semibold mb-4">Разбивка по модел</h2>
-              <table className="w-full text-sm">
-                <thead className="border-b border-border">
-                  <tr>
-                    {["Модел", "Съобщения", "Токени вход", "Токени изход", "Разход"].map((h) => (
-                      <th key={h} className="text-left py-2 t-small font-semibold text-muted-foreground">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {reportData.modelBreakdown.map((m) => (
-                    <tr key={m.model}>
-                      <td className="py-2 font-medium">{m.model}</td>
-                      <td className="py-2">{m.messages}</td>
-                      <td className="py-2">{m.tokensIn}</td>
-                      <td className="py-2">{m.tokensOut}</td>
-                      <td className="py-2">${m.cost.toFixed(4)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Active users */}
+          {/* Users + costs chart */}
           {reportData.activeUsers && reportData.activeUsers.length > 0 && (
             <div className="bg-white rounded-2xl border border-border p-6">
-              <h2 className="t-subheading font-semibold mb-4">Активни потребители</h2>
-              <table className="w-full text-sm">
-                <thead className="border-b border-border">
-                  <tr>
-                    {["Потребител", "Разговори", "Съобщения", "Разход"].map((h) => (
-                      <th key={h} className="text-left py-2 t-small font-semibold text-muted-foreground">{h}</th>
-                    ))}
+              <h2 className="t-subheading font-semibold mb-4">Потребители с разходи</h2>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={reportData.activeUsers.slice(0, 15)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${Number(v).toFixed(4)}`} />
+                  <Tooltip formatter={(v: number) => [`$${v.toFixed(6)}`, "Разход"]} />
+                  <Bar dataKey="cost" fill="#D6071A" name="Разход" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <table className="w-full text-xs mt-4 border-t border-border">
+                <thead>
+                  <tr className="text-muted-foreground">
+                    <th className="text-left py-1.5">Потребител</th>
+                    <th className="text-right py-1.5">Разговори</th>
+                    <th className="text-right py-1.5">Съобщения</th>
+                    <th className="text-right py-1.5">Токени</th>
+                    <th className="text-right py-1.5">Разход</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody>
                   {reportData.activeUsers.map((u) => (
-                    <tr key={u.email}>
-                      <td className="py-2">
+                    <tr key={u.email} className="border-t border-border/40">
+                      <td className="py-1.5">
                         <div className="font-medium">{u.name}</div>
-                        <div className="t-small text-muted-foreground">{u.email}</div>
+                        <div className="text-muted-foreground">{u.email}</div>
                       </td>
-                      <td className="py-2">{u.conversations}</td>
-                      <td className="py-2">{u.messages}</td>
-                      <td className="py-2">${u.cost.toFixed(4)}</td>
+                      <td className="py-1.5 text-right">{u.conversations}</td>
+                      <td className="py-1.5 text-right">{u.messages}</td>
+                      <td className="py-1.5 text-right">{((u.tokensIn + u.tokensOut) / 1000).toFixed(1)}K</td>
+                      <td className="py-1.5 text-right font-medium">${u.cost.toFixed(4)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Analyses preview */}
+          {reportData.analyses && reportData.analyses.length > 0 && (
+            <div className="bg-white rounded-2xl border border-border p-6">
+              <h2 className="t-subheading font-semibold mb-4">
+                Анализи ({reportData.analyses.length} бр.)
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="border-b border-border">
+                    <tr className="text-muted-foreground">
+                      <th className="text-left py-1.5 pr-3">Потребител</th>
+                      <th className="text-left py-1.5 pr-3">Бот</th>
+                      <th className="text-left py-1.5 pr-3">Дата</th>
+                      <th className="text-right py-1.5 pr-3">Оценка</th>
+                      <th className="text-left py-1.5">Обобщение</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.analyses.map((a, i) => (
+                      <tr key={i} className="border-t border-border/40 align-top">
+                        <td className="py-1.5 pr-3">
+                          <div className="font-medium">{a.user}</div>
+                          <div className="text-muted-foreground">{a.email}</div>
+                        </td>
+                        <td className="py-1.5 pr-3">{a.bot}</td>
+                        <td className="py-1.5 pr-3 whitespace-nowrap">{a.date}</td>
+                        <td className="py-1.5 pr-3 text-right font-bold">
+                          {a.overallScore != null ? (
+                            <span className={
+                              a.overallScore >= 8 ? "text-green-600" :
+                              a.overallScore >= 6 ? "text-yellow-600" : "text-red-600"
+                            }>
+                              {a.overallScore.toFixed(1)}
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="py-1.5 text-muted-foreground max-w-xs truncate">{a.summary}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

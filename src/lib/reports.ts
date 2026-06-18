@@ -1,6 +1,6 @@
 import db from "@/db";
 import { users, conversations, messages, bots, analyses } from "@/db/schema";
-import { eq, gte, lte, and, count, sum, countDistinct } from "drizzle-orm";
+import { eq, gte, lte, and, count, sum, gt, asc } from "drizzle-orm";
 
 export interface ReportOptions {
   from: string;
@@ -16,6 +16,7 @@ export async function generateReportData(opts: ReportOptions) {
 
   const result: Record<string, unknown> = {};
 
+  // ── Summary ──────────────────────────────────────────────────────────────────
   if (opts.includes.includes("summary")) {
     const [newUsers] = await db
       .select({ count: count() })
@@ -32,14 +33,21 @@ export async function generateReportData(opts: ReportOptions) {
       .from(messages)
       .where(and(gte(messages.createdAt, fromDate), lte(messages.createdAt, toDate)));
 
+    const [analysisCount] = await db
+      .select({ count: count() })
+      .from(analyses)
+      .where(and(gte(analyses.createdAt, fromDate), lte(analyses.createdAt, toDate)));
+
     result.summary = {
       newUsers: newUsers.count,
       conversations: convCount.count,
       messages: msgStats.count,
+      analyses: analysisCount.count,
       totalCost: parseFloat(msgStats.totalCost ?? "0"),
     };
   }
 
+  // ── Active Users with costs ───────────────────────────────────────────────
   if (opts.includes.includes("activeUsers")) {
     const rows = await db
       .select({
@@ -58,61 +66,128 @@ export async function generateReportData(opts: ReportOptions) {
         )
       )
       .groupBy(users.id, users.name, users.email)
-      .having(count(conversations.id));
+      .having(gt(count(conversations.id), 0));
 
-    // Get message counts per user
+    // Fetch costs per user via messages
+    const costRows = await db
+      .select({
+        userId: conversations.userId,
+        totalCost: sum(messages.cost),
+        totalMessages: count(messages.id),
+        tokensIn: sum(messages.tokensIn),
+        tokensOut: sum(messages.tokensOut),
+      })
+      .from(messages)
+      .leftJoin(conversations, eq(messages.conversationId, conversations.id))
+      .where(and(gte(messages.createdAt, fromDate), lte(messages.createdAt, toDate)))
+      .groupBy(conversations.userId);
+
+    const costMap = new Map(costRows.map((r) => [r.userId, r]));
+
     result.activeUsers = rows
       .filter((r) => r.conversations > 0)
       .sort((a, b) => b.conversations - a.conversations)
-      .map((r, i) => ({
-        name: anonymize ? `User #${i + 1}` : (r.name ?? "—"),
-        email: anonymize ? `user${i + 1}@anonymized` : r.email,
-        conversations: r.conversations,
-        messages: 0,
-        cost: 0,
-      }));
+      .map((r, i) => {
+        const costs = costMap.get(r.id);
+        return {
+          name: anonymize ? `User #${i + 1}` : (r.name ?? "—"),
+          email: anonymize ? `user${i + 1}@anonymized` : r.email,
+          conversations: r.conversations,
+          messages: costs?.totalMessages ?? 0,
+          tokensIn: parseInt(String(costs?.tokensIn ?? "0")),
+          tokensOut: parseInt(String(costs?.tokensOut ?? "0")),
+          cost: parseFloat(String(costs?.totalCost ?? "0")),
+        };
+      });
   }
 
-  if (opts.includes.includes("languageBreakdown")) {
+  // ── Analyses ──────────────────────────────────────────────────────────────
+  if (opts.includes.includes("analyses")) {
     const rows = await db
       .select({
-        language: conversations.language,
-        conversations: count(conversations.id),
+        id: analyses.id,
+        conversationId: analyses.conversationId,
+        overallScore: analyses.overallScore,
+        summary: analyses.summary,
+        strengths: analyses.strengths,
+        improvements: analyses.improvements,
+        createdAt: analyses.createdAt,
+        userName: users.name,
+        userEmail: users.email,
+        botTitle: bots.title,
       })
-      .from(conversations)
-      .where(and(gte(conversations.startedAt, fromDate), lte(conversations.startedAt, toDate)))
-      .groupBy(conversations.language);
+      .from(analyses)
+      .leftJoin(conversations, eq(analyses.conversationId, conversations.id))
+      .leftJoin(users, eq(conversations.userId, users.id))
+      .leftJoin(bots, eq(analyses.botId, bots.id))
+      .where(and(gte(analyses.createdAt, fromDate), lte(analyses.createdAt, toDate)))
+      .orderBy(asc(analyses.createdAt));
 
-    result.languageBreakdown = rows.map((r) => ({
-      language: r.language.toUpperCase(),
-      conversations: r.conversations,
-      messages: 0,
-      cost: 0,
+    result.analyses = rows.map((r, i) => ({
+      user: anonymize ? `User #${i + 1}` : (r.userName ?? "—"),
+      email: anonymize ? `user${i + 1}@anonymized` : (r.userEmail ?? "—"),
+      bot: r.botTitle ?? "—",
+      date: r.createdAt.toLocaleDateString("bg"),
+      overallScore: r.overallScore ?? null,
+      summary: r.summary ?? "",
+      strengths: (r.strengths ?? []).join("; "),
+      improvements: (r.improvements ?? []).join("; "),
+      conversationId: r.conversationId,
     }));
   }
 
-  if (opts.includes.includes("modelBreakdown")) {
-    const rows = await db
+  // ── Transcripts ───────────────────────────────────────────────────────────
+  if (opts.includes.includes("transcripts")) {
+    const convRows = await db
       .select({
-        model: messages.model,
-        messages: count(messages.id),
-        tokensIn: sum(messages.tokensIn),
-        tokensOut: sum(messages.tokensOut),
-        cost: sum(messages.cost),
+        id: conversations.id,
+        startedAt: conversations.startedAt,
+        status: conversations.status,
+        userName: users.name,
+        userEmail: users.email,
+        botTitle: bots.title,
+        overallScore: analyses.overallScore,
       })
-      .from(messages)
-      .where(and(gte(messages.createdAt, fromDate), lte(messages.createdAt, toDate)))
-      .groupBy(messages.model);
+      .from(conversations)
+      .leftJoin(users, eq(conversations.userId, users.id))
+      .leftJoin(bots, eq(conversations.botId, bots.id))
+      .leftJoin(analyses, eq(analyses.conversationId, conversations.id))
+      .where(and(gte(conversations.startedAt, fromDate), lte(conversations.startedAt, toDate)));
 
-    result.modelBreakdown = rows
-      .filter((r) => r.model)
-      .map((r) => ({
-        model: r.model!,
-        messages: r.messages,
-        tokensIn: parseInt(r.tokensIn ?? "0"),
-        tokensOut: parseInt(r.tokensOut ?? "0"),
-        cost: parseFloat(r.cost ?? "0"),
-      }));
+    const transcripts: Array<{
+      conversationId: string;
+      user: string;
+      email: string;
+      bot: string;
+      startedAt: string;
+      status: string;
+      overallScore: number | null;
+      messages: Array<{ role: string; content: string }>;
+    }> = [];
+
+    for (const conv of convRows) {
+      const msgs = await db
+        .select({ role: messages.role, content: messages.content })
+        .from(messages)
+        .where(eq(messages.conversationId, conv.id))
+        .orderBy(asc(messages.createdAt));
+
+      const userMsgs = msgs.filter((m) => m.role !== "system");
+      if (userMsgs.length === 0) continue;
+
+      transcripts.push({
+        conversationId: conv.id,
+        user: anonymize ? "Анонимен" : (conv.userName ?? "—"),
+        email: anonymize ? "—" : (conv.userEmail ?? "—"),
+        bot: conv.botTitle ?? "—",
+        startedAt: conv.startedAt.toLocaleDateString("bg"),
+        status: conv.status,
+        overallScore: conv.overallScore ?? null,
+        messages: userMsgs,
+      });
+    }
+
+    result.transcripts = transcripts;
   }
 
   return result;

@@ -14,7 +14,7 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, icon, iconAccent, iconImage, backHref, className }: ScreenHeaderProps) {
   return (
-    <div className={cn("sticky top-0 z-10 bg-background flex items-start justify-between gap-4 pb-6", className)}>
+    <div className={cn("sticky top-0 z-10 bg-background pt-14 md:pt-4 flex items-start justify-between gap-4 pb-6", className)}>
       {/* Icon + title */}
       <div className="flex items-center gap-4">
         {(icon || iconImage) && (
@@ -29,9 +29,9 @@ export function ScreenHeader({ title, icon, iconAccent, iconImage, backHref, cla
       <Link
         href={backHref}
         aria-label="Назад"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-foreground/50 hover:bg-primary hover:text-white hover:border-primary transition-all"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#DAE5ED] text-[#52626F] shadow-[3px_4px_6px_0px_rgba(90,122,150,0.35),-3px_0px_11px_-2px_rgba(255,255,255,0.85)] hover:bg-primary hover:text-white transition-all"
       >
-        <X className="h-5 w-5" />
+        <X className="h-4 w-4" />
       </Link>
     </div>
   );

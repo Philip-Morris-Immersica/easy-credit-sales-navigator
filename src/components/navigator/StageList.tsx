@@ -12,7 +12,9 @@ export function StageList({ node, parentSlugPath }: StageListProps) {
 
   return (
     <div className="max-w-3xl space-y-5">
-      <h1 className="t-heading font-bold text-foreground">{node.title}</h1>
+      <div className="sticky top-0 z-10 bg-background pt-14 md:pt-4 pb-3">
+        <h1 className="t-heading font-bold text-foreground">{node.title}</h1>
+      </div>
 
       <div className="flex flex-col gap-3">
         {stages.map((stage, idx) => {

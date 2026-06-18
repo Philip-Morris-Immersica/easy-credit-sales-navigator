@@ -3,6 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Video, Dumbbell, X, User } from "lucide-react";
+import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Collapsible,
@@ -13,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VideoModal } from "@/components/navigator/VideoModal";
 import { SimulationModal } from "@/components/chat/SimulationModal";
+import { getBotAvatar } from "@/lib/bot-avatars";
+import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 import type {
   ContentBlock,
   TabsBlock,
@@ -92,6 +95,21 @@ function TabsRenderer({ block, render }: { block: TabsBlock; render: RenderFn })
   );
 }
 
+// ─── Stage icon mapping ───────────────────────────────────────────────────
+// Maps Bulgarian stage label text to DuotoneIcon name strings.
+
+function getStageIconName(label: string): string {
+  const t = label.toLowerCase();
+  if (t.includes("начало") || t.includes("отваряне") || t.includes("разчупване")) return "DoorOpen";
+  if (t.includes("събиране")) return "ClipboardList";
+  if (t.includes("проучване") || t.includes("определяне") || t.includes("идентифициране")) return "Search";
+  // Combined step with objections takes ShieldCheck (more representative than CheckCircle)
+  if (t.includes("справяне") || t.includes("възражени")) return "ShieldCheck";
+  if (t.includes("представяне") || t.includes("предложение")) return "FileText";
+  if (t.includes("финализиране") || t.includes("обобщение") || t.includes("затваряне") || t.includes("приключване")) return "CheckCircle";
+  return "Target";
+}
+
 // ─── CollapsibleRenderer ─────────────────────────────────────────────────
 
 function CollapsibleRenderer({
@@ -110,6 +128,45 @@ function CollapsibleRenderer({
   const open = isControlled ? externalOpen : internalOpen;
   const setOpen = isControlled ? (externalOnOpenChange ?? (() => {})) : setInternalOpen;
 
+  // Numbered stage labels like "1. Начало на разговора" or "2, 3 и 4. Представяне, Възражения и Затваряне"
+  // render as neu-card stage buttons. The stage number can be a range like "2, 3 и 4".
+  const stageMatch = block.label.match(/^(\d[^.]*)\.\s+(.+)$/);
+
+  if (stageMatch) {
+    const stageNum = stageMatch[1];
+    const stageTitle = stageMatch[2];
+    const iconName = getStageIconName(block.label);
+
+    return (
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger
+          className={cn(
+            "flex w-full flex-row items-center gap-5 rounded-2xl px-5 py-5 text-left transition-all",
+            open ? "neu-card-pressed" : "neu-card"
+          )}
+        >
+          <DuotoneIcon name={iconName} className="h-11 w-11 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="t-subheading font-semibold leading-snug">
+              <span className="text-primary">Етап {stageNum}:&nbsp;</span>
+              <span className="text-foreground">{stageTitle}</span>
+            </p>
+          </div>
+          <ChevronDown
+            className={cn(
+              "h-5 w-5 shrink-0 transition-transform text-foreground/40",
+              open && "rotate-180"
+            )}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3 space-y-4 pb-1">
+          {render(block.blocks)}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
+  // Regular (non-stage) collapsible — border card style
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger
@@ -164,10 +221,12 @@ export function CollapsibleGroupRenderer({
 
 function PersonaPreviewModal({
   persona,
+  botKey,
   onTrain,
   onClose,
 }: {
   persona: PersonaData;
+  botKey?: string;
   onTrain: () => void;
   onClose: () => void;
 }) {
@@ -181,6 +240,8 @@ function PersonaPreviewModal({
 
   if (!mounted) return null;
 
+  const avatarSrc = botKey ? getBotAvatar(botKey) : undefined;
+
   const metaRows: [string, string][] = [
     ["Тип контакт", persona.contactType],
     ["Персонаж", persona.name],
@@ -192,10 +253,10 @@ function PersonaPreviewModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[190] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[190] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[88vh]">
+      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-primary text-white rounded-t-2xl shrink-0">
           <div className="flex items-center gap-2">
@@ -212,45 +273,66 @@ function PersonaPreviewModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {metaRows.map(([label, value]) => (
-            <div key={label}>
-              <p className="text-[0.7rem] font-extrabold uppercase tracking-widest text-primary/80">{label}</p>
-              <p className="text-sm text-foreground mt-0.5 leading-snug">{value}</p>
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-5 py-4">
+            {/* Photo floated right on all screen sizes */}
+            {avatarSrc && (
+              <div className="float-right ml-4 mb-3">
+                <div className="relative w-28 h-36 sm:w-40 sm:h-52 rounded-2xl overflow-hidden shadow-md ring-2 ring-primary/15">
+                  <Image
+                    src={avatarSrc}
+                    alt={persona.name}
+                    fill
+                    className="object-cover object-center"
+                    sizes="(max-width: 640px) 112px, 160px"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {metaRows.map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-primary/80">{label}</p>
+                  <p className="text-base text-foreground mt-0.5 leading-snug">{value}</p>
+                </div>
+              ))}
+
+              <div className="clear-both" />
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary/80">Примерни реплики</p>
+                <ul className="mt-1 space-y-1">
+                  {(persona.sampleReplies ?? []).map((r, i) => (
+                    <li key={i} className="text-base text-foreground/80 italic leading-snug">{r}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary/80">Възможни възражения</p>
+                <ul className="mt-1 space-y-1">
+                  {(persona.objections ?? []).map((o, i) => (
+                    <li key={i} className="text-base text-foreground/80 leading-snug">{o}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary/80">Подходящи техники</p>
+                <p className="text-base text-foreground mt-0.5">{(persona.techniques ?? []).join(", ")}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary/80">Следваща стъпка / финализиране</p>
+                <p className="text-base text-foreground mt-0.5 leading-snug">{persona.nextStep}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary/80">Какво да не правиш</p>
+                <p className="text-base text-foreground mt-0.5 leading-snug">{persona.doNotDo}</p>
+              </div>
             </div>
-          ))}
-
-          <div>
-            <p className="text-[0.7rem] font-extrabold uppercase tracking-widest text-primary/80">Примерни реплики</p>
-            <ul className="mt-1 space-y-1">
-              {persona.sampleReplies.map((r, i) => (
-                <li key={i} className="text-sm text-foreground/80 italic leading-snug">{r}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <p className="text-[0.7rem] font-extrabold uppercase tracking-widest text-primary/80">Възможни възражения</p>
-            <ul className="mt-1 space-y-1">
-              {persona.objections.map((o, i) => (
-                <li key={i} className="text-sm text-foreground/80 leading-snug">{o}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <p className="text-[0.7rem] font-extrabold uppercase tracking-widest text-primary/80">Подходящи техники</p>
-            <p className="text-sm text-foreground mt-0.5">{persona.techniques.join(", ")}</p>
-          </div>
-
-          <div>
-            <p className="text-[0.7rem] font-extrabold uppercase tracking-widest text-primary/80">Следваща стъпка / финализиране</p>
-            <p className="text-sm text-foreground mt-0.5 leading-snug">{persona.nextStep}</p>
-          </div>
-
-          <div>
-            <p className="text-[0.7rem] font-extrabold uppercase tracking-widest text-primary/80">Какво да не правиш</p>
-            <p className="text-sm text-foreground mt-0.5 leading-snug">{persona.doNotDo}</p>
           </div>
         </div>
 
@@ -343,6 +425,7 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
       {previewOpen && block.persona && (
         <PersonaPreviewModal
           persona={block.persona}
+          botKey={block.botKey}
           onTrain={() => {
             setPreviewOpen(false);
             fetchAndOpenSim();

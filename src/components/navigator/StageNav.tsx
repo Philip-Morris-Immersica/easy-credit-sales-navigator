@@ -16,7 +16,7 @@ export function StageNav({ stages, parentHref }: StageNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="mb-7">
+    <nav className="sticky top-0 z-10 bg-background pt-14 md:pt-4 pb-4 mb-3">
       {/* Desktop: "1. Отваряне" style tabs */}
       <div className="hidden sm:flex justify-start flex-wrap gap-2">
         {stages.map((stage, idx) => {

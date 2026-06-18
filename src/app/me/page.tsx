@@ -48,11 +48,19 @@ export default async function MePage() {
     <div className="min-h-screen bg-muted/30">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="t-heading font-bold text-foreground">
-            Здравей, {user.name ?? user.email}!
-          </h1>
-          <p className="t-body text-muted-foreground mt-1">Твоят обучителен напредък</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="t-heading font-bold text-foreground">
+              Здравей, {user.name ?? user.email}!
+            </h1>
+            <p className="t-body text-muted-foreground mt-1">Твоят обучителен напредък</p>
+          </div>
+          <Link
+            href="/"
+            className={cn(buttonVariants({ size: "sm" }), "shrink-0 bg-primary text-white hover:bg-primary/90")}
+          >
+            Към навигатора
+          </Link>
         </div>
 
         {/* Stats */}
@@ -79,9 +87,6 @@ export default async function MePage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="t-subheading font-semibold">Симулации</h2>
-            <Link href="/" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-              Към навигатора
-            </Link>
           </div>
 
           {simulations.length === 0 ? (

@@ -12,18 +12,20 @@ export function CardGrid({ node, parentSlugPath }: CardGridProps) {
   const children = node.children ?? [];
   return (
     <div className="space-y-5">
-      <h1 className="t-heading font-bold text-foreground">{node.title}</h1>
-      {node.content && node.content.length > 0 && (
-        <p className="t-body text-foreground/60 max-w-xl">
-          {node.content.find((b) => b.type === "goal")?.text}
-        </p>
-      )}
+      <div className="sticky top-0 z-10 bg-background pt-14 md:pt-4 pb-3">
+        <h1 className="t-heading font-bold text-foreground">{node.title}</h1>
+        {node.content && node.content.length > 0 && (
+          <p className="t-body text-foreground/60 max-w-xl mt-1">
+            {node.content.find((b) => b.type === "goal")?.text}
+          </p>
+        )}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
         {children.map((child) => {
           const href = `${parentSlugPath}/${child.slug}`;
           return (
             <Link key={child.id} href={href} className="flex">
-              <Card className="neu-card group w-full min-h-[7rem] rounded-2xl px-6 flex flex-row items-center gap-5 cursor-pointer ring-0 shadow-none">
+              <Card className="neu-card-flat group w-full min-h-[7rem] rounded-2xl px-6 flex flex-row items-center gap-5 cursor-pointer ring-0 shadow-none">
                 <DuotoneIcon
                   name={child.icon}
                   accent={child.iconAccent}

@@ -101,7 +101,7 @@ const botsData: schema.NewBot[] = [
     analysisPrompt: buildAnalysisPrompt(
       "Лоялен клиент с изградено доверие. Оценявай особено: дали консултантът е признал лоялността и е дал конкретна персонална полза; дали е уважил времето на клиента; дали е стигнал до ясна следваща стъпка без излишно натискане."
     ),
-    welcomeMessage: "Симулацията започва. Ти си консултант от EasyCredit — обади се на Георги Петров, лоялен клиент. Набери и започни разговора.",
+    welcomeMessage: "Ало? А, здравей! Какво стана?",
     model: "gpt-4.1-mini",
     temperature: 0.8,
     maxTokens: 2000,
@@ -139,7 +139,7 @@ const botsData: schema.NewBot[] = [
     analysisPrompt: buildAnalysisPrompt(
       "Предодобрен клиент — скептичен, търси прозрачност и сигурност. Оценявай особено: дали консултантът е отговорил честно на въпроса за уловката; дали е обяснил предодобрението ясно; дали е изградил доверие преди да се опита да затвори."
     ),
-    welcomeMessage: "Симулацията започва. Ти си консултант от EasyCredit — обади се на Даниела Иванова, предодобрен клиент. Започни разговора.",
+    welcomeMessage: "Ало?",
     model: "gpt-4.1-mini",
     temperature: 0.8,
     maxTokens: 2000,
@@ -177,7 +177,7 @@ const botsData: schema.NewBot[] = [
     analysisPrompt: buildAnalysisPrompt(
       "Студен контакт по промо кампания. Оценявай особено: дали консултантът е успял да събуди интерес у незаинтересован клиент; дали е използвал тирбушон въпрос за нужди; дали е избегнал рекламен/натрапчив тон и е дал конкретна персонална причина за разговора."
     ),
-    welcomeMessage: "Симулацията започва. Ти си консултант от EasyCredit — обади се на Николай Тодоров, студен контакт по промо кампания. Набери и започни разговора.",
+    welcomeMessage: "Ало? Да?",
     model: "gpt-4.1-mini",
     temperature: 0.85,
     maxTokens: 2000,
@@ -215,7 +215,7 @@ const botsData: schema.NewBot[] = [
     analysisPrompt: buildAnalysisPrompt(
       "Клиент пенсионер — иска яснота, уважение и спокойствие. Оценявай особено: дали консултантът е говорил бавно и ясно; дали е проверявал разбирането след всяка точка; дали е показал търпение при въпроси и колебания; дали е предложил участие на близък при нужда."
     ),
-    welcomeMessage: "Симулацията започва. Ти си консултант от EasyCredit — обади се на Мария Стоянова, пенсионерка. Говори спокойно и ясно. Започни разговора.",
+    welcomeMessage: "Ало? Да, слушам?",
     model: "gpt-4.1-mini",
     temperature: 0.75,
     maxTokens: 2000,
@@ -252,7 +252,7 @@ const botsData: schema.NewBot[] = [
     analysisPrompt: buildAnalysisPrompt(
       "Клиент по препоръка — има предварително доверие чрез познат, но е лично резервиран. Оценявай особено: дали консултантът се е позовал на препоръката естествено (без натиск); дали е намалил усещането за непоискан контакт; дали е разбрал нуждите преди да предлага."
     ),
-    welcomeMessage: "Симулацията започва. Ти си консултант от EasyCredit — обади се на Мария Петрова, препоръчана от неин познат. Започни разговора.",
+    welcomeMessage: "Ало? С кого говоря?",
     model: "gpt-4.1-mini",
     temperature: 0.8,
     maxTokens: 2000,
@@ -419,8 +419,12 @@ const pricingData: ModelPricing[] = [
   { model: "gpt-4.1-mini", inputPer1k: 0.0004, outputPer1k: 0.0016 },
   { model: "gpt-4.1-nano", inputPer1k: 0.0001, outputPer1k: 0.0004 },
   { model: "gpt-4.5", inputPer1k: 0.075, outputPer1k: 0.15 },
+  { model: "gpt-4.5-mini", inputPer1k: 0.002, outputPer1k: 0.008 },
   { model: "gpt-4o", inputPer1k: 0.0025, outputPer1k: 0.01 },
   { model: "gpt-4o-mini", inputPer1k: 0.00015, outputPer1k: 0.0006 },
+  { model: "o4-mini", inputPer1k: 0.0011, outputPer1k: 0.0044 },
+  { model: "gpt-5.4", inputPer1k: 0.005, outputPer1k: 0.02 },
+  { model: "gpt-5.4-mini", inputPer1k: 0.001, outputPer1k: 0.004 },
 ];
 
 async function main() {

@@ -30,8 +30,8 @@ export function PreparationAccordion({ node, parentSlugPath }: Props) {
 
   return (
     <div className="max-w-2xl space-y-5">
-      {/* Page title */}
-      <div className="flex items-center gap-3 pb-1">
+      {/* Page title — sticky */}
+      <div className="sticky top-0 z-10 bg-background pt-14 md:pt-4 pb-3">
         <h1 className="t-heading font-bold text-foreground">{node.title}</h1>
       </div>
 

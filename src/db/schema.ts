@@ -112,8 +112,11 @@ export const bots = pgTable("bots", {
   analysisPrompt: text("analysis_prompt"),
   welcomeMessage: text("welcome_message").notNull().default(""),
   model: varchar("model", { length: 100 }).notNull().default("gpt-4.1-mini"),
+  analysisModel: varchar("analysis_model", { length: 100 }),
   temperature: real("temperature").notNull().default(0.7),
   maxTokens: integer("max_tokens").notNull().default(2000),
+  analysisTemperature: real("analysis_temperature").notNull().default(0.3),
+  analysisMaxTokens: integer("analysis_max_tokens").notNull().default(1500),
   enabled: boolean("enabled").notNull().default(true),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
