@@ -78,7 +78,7 @@ ${summaries.slice(0, 10).map((s, i) => `${i + 1}. ${s}`).join("\n")}
     const { text } = await generateText({
       model: openai("gpt-4o-mini"),
       prompt,
-      maxTokens: 600,
+      maxOutputTokens: 600,
     });
 
     return Response.json({
