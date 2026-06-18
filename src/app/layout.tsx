@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RobiButton } from "@/components/navigator/RobiButton";
 import { AuthProvider } from "@/components/AuthProvider";
 import { TopRightNav } from "@/components/TopRightNav";
+import { auth } from "@/auth";
 import "./globals.css";
 
 const sofiaSans = Sofia_Sans({
@@ -23,15 +24,16 @@ export const metadata: Metadata = {
   description: "Интерактивен обучителен навигатор за продажбени умения на EasyCredit. Шрифт: Sofia Sans. Дизайн: Easy Credit Guide (Figma).",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="bg" className={`${sofiaSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
+        <AuthProvider session={session}>
           <TooltipProvider>{children}</TooltipProvider>
           <RobiButton />
           <TopRightNav />

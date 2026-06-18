@@ -20,7 +20,7 @@ export function RobiButton() {
       <button
         aria-label="Роби — асистент"
         title="Роби — асистент"
-        className="fixed bottom-5 right-5 z-50 h-16 w-16 rounded-full overflow-hidden ring-[3px] ring-white shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.45)] hover:scale-105 transition-all duration-200"
+        className={`fixed bottom-5 right-5 z-50 h-16 w-16 rounded-full overflow-hidden ring-[3px] ring-white shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.45)] hover:scale-105 transition-all duration-200 ${open ? "hidden" : ""}`}
         onClick={() => setOpen((o) => !o)}
       >
         <Image
@@ -35,16 +35,25 @@ export function RobiButton() {
       {open &&
         typeof window !== "undefined" &&
         createPortal(
-          <div className="fixed bottom-5 right-5 z-[100] w-[640px] h-[calc(100vh-2.5rem)] max-w-[calc(100vw-2rem)] flex flex-col rounded-2xl overflow-hidden shadow-2xl">
-            <ChatWindow
-              botKey={ROBI_BOT_KEY}
-              botTitle={ROBI_TITLE}
-              welcomeMessage={ROBI_WELCOME}
-              kind="consultant"
-              onClose={() => setOpen(false)}
-              className="h-full"
+          <>
+            {/* Transparent backdrop — click outside to close */}
+            <div
+              className="fixed inset-0 z-[99]"
+              onClick={() => setOpen(false)}
+              aria-hidden
             />
-          </div>,
+            {/* Chat window — clamped to viewport with top + bottom anchors */}
+            <div className="fixed top-4 bottom-5 right-5 z-[100] w-[768px] max-w-[calc(100vw-2.5rem)] flex flex-col rounded-2xl overflow-hidden shadow-2xl">
+              <ChatWindow
+                botKey={ROBI_BOT_KEY}
+                botTitle={ROBI_TITLE}
+                welcomeMessage={ROBI_WELCOME}
+                kind="consultant"
+                onClose={() => setOpen(false)}
+                className="h-full"
+              />
+            </div>
+          </>,
           document.body
         )}
     </>
