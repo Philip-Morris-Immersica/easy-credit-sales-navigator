@@ -88,7 +88,7 @@ export function AdminDashboardCharts({ dailyCosts, dailyConvs }: AdminDashboardC
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={1} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v.toFixed(3)}`} />
-              <Tooltip formatter={(v: number) => [`$${v.toFixed(4)}`, "Разход"]} />
+              <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(4) : v}`, "Разход"]} />
               <Bar dataKey="cost" name="Разход" fill="#D6071A" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
