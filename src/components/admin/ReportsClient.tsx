@@ -242,7 +242,7 @@ export function ReportsClient() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${Number(v).toFixed(4)}`} />
-                  <Tooltip formatter={(v: number) => [`$${v.toFixed(6)}`, "Разход"]} />
+                  <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(6) : v}`, "Разход"]} />
                   <Bar dataKey="cost" fill="#D6071A" name="Разход" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
