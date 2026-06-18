@@ -54,6 +54,36 @@ export async function logoutUser() {
   await signOut({ redirectTo: "/login" });
 }
 
+export type LoginFailureReason =
+  | "no-user"
+  | "bad-password"
+  | "oauth-only"
+  | "unknown";
+
+/**
+ * Runs only after Auth.js has already rejected the credentials, to produce a
+ * specific, user-friendly message. Note: distinguishing "no user" from "wrong
+ * password" allows email enumeration — acceptable here for an internal tool.
+ */
+export async function diagnoseLoginFailure(
+  email: string,
+  password: string
+): Promise<{ reason: LoginFailureReason }> {
+  const user = await db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.email, email.toLowerCase()))
+    .then((r) => r[0]);
+
+  if (!user) return { reason: "no-user" };
+  if (!user.passwordHash) return { reason: "oauth-only" };
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) return { reason: "bad-password" };
+
+  return { reason: "unknown" };
+}
+
 export async function sendPasswordReset(email: string) {
   const user = await db
     .select({ id: users.id, name: users.name })

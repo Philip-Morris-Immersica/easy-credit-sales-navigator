@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-border p-8 space-y-6">
         <div className="text-center space-y-2">
-          <Image src="/ec-logo.png" alt="EasyCredit" width={120} height={40} className="mx-auto h-8 w-auto object-contain" />
+          <Image src="/logos/easycredit-red.png" alt="EasyCredit" width={120} height={40} className="mx-auto h-8 w-auto object-contain" />
           <h1 className="t-heading font-bold text-foreground">Забравена парола</h1>
         </div>
 

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Mail, Lock } from "lucide-react";
+import { diagnoseLoginFailure } from "@/lib/auth-actions";
 
 function LoginForm() {
   const router = useRouter();
@@ -30,10 +31,26 @@ function LoginForm() {
       password,
       redirect: false,
     });
-    setLoading(false);
     if (!res?.ok) {
-      setError("Невалиден имейл или парола.");
+      const { reason } = await diagnoseLoginFailure(email, password);
+      setLoading(false);
+      switch (reason) {
+        case "no-user":
+          setError("Няма регистриран потребител с този имейл.");
+          break;
+        case "bad-password":
+          setError("Грешна парола.");
+          break;
+        case "oauth-only":
+          setError(
+            "Този акаунт е създаден чрез Google/Microsoft. Влезте с съответния бутон по-долу."
+          );
+          break;
+        default:
+          setError("Входът е неуспешен. Опитайте отново.");
+      }
     } else {
+      setLoading(false);
       router.push(callbackUrl);
       router.refresh();
     }
@@ -47,7 +64,7 @@ function LoginForm() {
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-border p-8 space-y-6">
         <div className="text-center space-y-2">
-          <Image src="/ec-logo.png" alt="EasyCredit" width={120} height={40} className="mx-auto h-8 w-auto object-contain" />
+          <Image src="/logos/easycredit-red.png" alt="EasyCredit" width={120} height={40} className="mx-auto h-8 w-auto object-contain" />
           <h1 className="t-heading font-bold text-foreground">Вход</h1>
           <p className="t-body text-muted-foreground">Навигатор за продажбени умения</p>
         </div>
