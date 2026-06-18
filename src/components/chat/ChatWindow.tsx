@@ -107,6 +107,11 @@ export function ChatWindow({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, analysis]);
 
+  // Auto-focus the textarea when the chat window opens.
+  useEffect(() => {
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, []);
+
   // Voice typing (Bulgarian) via the Web Speech API.
   const { supported: voiceSupported, listening, interim, processing: voiceProcessing, permission: micPermission, stop: stopVoice, toggle: toggleVoice } =
     useSpeechRecognition({
@@ -210,6 +215,8 @@ export function ChatWindow({
       );
     } finally {
       setLoading(false);
+      // Return focus to the input so the user can type the next reply immediately.
+      setTimeout(() => textareaRef.current?.focus(), 0);
     }
   }, [input, loading, ended, session, botKey, conversationId, isNew, stopVoice]);
 
@@ -269,7 +276,7 @@ export function ChatWindow({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <ScrollArea className="flex-1 min-h-0 p-4">
+        <ScrollArea className="flex-1 min-h-0 overflow-hidden p-4">
           <AnalysisFeedback analysis={analysis} />
           <div className="mt-4 flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowAnalysis(false)}>
@@ -314,7 +321,7 @@ export function ChatWindow({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <ScrollArea className="flex-1 px-4 py-3">
+        <ScrollArea className="flex-1 min-h-0 px-4 py-3">
           <div className="space-y-3">
             {/* Photo floated right so text wraps around it */}
             {avatarSrc && (
@@ -465,7 +472,7 @@ export function ChatWindow({
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 px-4 py-3">
+      <ScrollArea className="flex-1 min-h-0 px-4 py-3">
         <div className="space-y-3">
           {messages.map((msg) => (
             <div

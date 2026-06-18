@@ -29,7 +29,7 @@ export function SimulationModal({ bot, persona, onClose }: SimulationModalProps)
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex flex-col">
+    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden">
       <ChatWindow
         botKey={bot.key}
         botTitle={bot.title}
