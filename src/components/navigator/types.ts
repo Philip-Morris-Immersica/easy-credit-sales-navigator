@@ -17,7 +17,7 @@ interface NoteBlock       { type: "note";        text: string }
 interface BulletsBlock    { type: "bullets";     items: string[] }
 interface ChecklistBlock  { type: "checklist";   items: string[] }
 interface NumberedBlock   { type: "numbered";    items: string[] }
-interface TechniquesBlock { type: "techniques";  text?: string; items: string[] }
+export interface TechniquesBlock { type: "techniques";  text?: string; items: string[] }
 
 /** Key-value pairs — for persona metadata (Тип контакт, Персонаж, Цел…) */
 export interface FieldsBlock {

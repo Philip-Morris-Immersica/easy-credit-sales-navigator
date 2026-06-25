@@ -1,16 +1,88 @@
 "use client";
 
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import type { ContentBlock, CollapsibleBlock } from "@/components/navigator/types";
+import type { ContentBlock, CollapsibleBlock, TechniquesBlock } from "@/components/navigator/types";
 import { BlockInteractive, CollapsibleGroupRenderer } from "@/components/navigator/BlockInteractive";
 import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 import {
-  Target, Wrench, MessageSquare, AlertCircle, ChevronRight,
+  Target, Wrench, MessageSquare, AlertCircle, ChevronRight, ChevronDown,
   GitBranch, ShieldCheck, Ban, List, MessageCircle, Info,
   Compass, BookOpen, Layers, ArrowRight, Lock, Unlock,
   Eye, EyeOff, Lightbulb, ClipboardList, ArrowRightLeft,
   DoorOpen, Search, FileText, CheckCircle,
 } from "lucide-react";
+
+/** Shared explanations for the objection-handling techniques, so the
+ *  "Подходящи техники" lists in scenarios are clickable and self-documenting. */
+const TECHNIQUE_DEFINITIONS: Record<string, { description: string; example: string }> = {
+  "огледална": {
+    description: "Отразяваш притеснението на клиента, за да покажеш, че си го разбрал.",
+    example: "Разбирам, че за Вас е важно да видите дали това реално си заслужава.",
+  },
+  "алтернативна": {
+    description: "Даваш два възможни варианта за продължаване на разговора.",
+    example: "По-удобно ли е да се чуем по-късно днес или утре?",
+  },
+  "относителна": {
+    description: "Поставяш възражението в контекст и насочваш към стойността и ползите.",
+    example: "Важно е да се види не само цената, а и какво получавате срещу нея.",
+  },
+  "тирбушон": {
+    description: "Задаваш уточняващ въпрос, за да стигнеш до реалната причина зад възражението.",
+    example: "Кое по-скоро Ви спира — моментът, нуждата или самото предложение?",
+  },
+};
+
+function TechniquesRenderer({ block }: { block: TechniquesBlock }) {
+  const [openItem, setOpenItem] = React.useState<string | null>(null);
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2">
+      <div className="flex items-center gap-2 t-body font-semibold text-foreground">
+        <Wrench className="h-5 w-5 text-primary shrink-0" />
+        <span>{block.text ?? "Техники"}</span>
+      </div>
+      <ul className="space-y-1.5">
+        {block.items?.map((item, i) => {
+          const def = TECHNIQUE_DEFINITIONS[item.trim().toLowerCase()];
+          const isOpen = openItem === item;
+          if (!def) {
+            return (
+              <li key={i} className="t-body text-foreground/80 pl-6 list-disc">
+                {item}
+              </li>
+            );
+          }
+          return (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => setOpenItem(isOpen ? null : item)}
+                aria-expanded={isOpen}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors",
+                  isOpen
+                    ? "border-primary/40 bg-primary/5 text-primary"
+                    : "border-border bg-card text-foreground hover:border-primary/40"
+                )}
+              >
+                <span className="t-body font-medium">{item}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isOpen ? "rotate-180 text-primary" : "text-primary/70")} />
+              </button>
+              {isOpen && (
+                <div className="mt-1.5 space-y-1.5 rounded-lg bg-muted/50 px-3 py-2.5">
+                  <p className="t-body text-foreground/80">{def.description}</p>
+                  <p className="t-small text-foreground/60 italic">Пример: {def.example}</p>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 type LucideIcon = React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
@@ -182,21 +254,7 @@ function Block({ block }: { block: ContentBlock }) {
       );
 
     case "techniques":
-      return (
-        <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2">
-          <div className="flex items-center gap-2 t-body font-semibold text-foreground">
-            <Wrench className="h-5 w-5 text-primary shrink-0" />
-            <span>{block.text ?? "Техники"}</span>
-          </div>
-          <ul className="space-y-1.5 pl-6">
-            {block.items?.map((item, i) => (
-              <li key={i} className="t-body text-foreground/80 list-disc">
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <TechniquesRenderer block={block} />;
 
     case "note":
       return (

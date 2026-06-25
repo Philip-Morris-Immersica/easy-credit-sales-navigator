@@ -63,7 +63,14 @@ export default async function NavigatorPage({
           <CardGrid node={node} parentSlugPath={parentSlugPath} />
         )
       ) : hasContent ? (
-        parentLayout === "stages" ? (
+        parentLayout === "accordion" && node.renderAs !== "button" ? (
+          /* Accordion child opened directly — show the parent accordion with this item expanded */
+          <PreparationAccordion
+            node={parentNode!}
+            parentSlugPath={parentHref}
+            initialOpenSlug={node.slug}
+          />
+        ) : parentLayout === "stages" ? (
           /* Stage detail page: horizontal tab nav + content */
           <>
             <StageNav

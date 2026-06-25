@@ -11,7 +11,7 @@ export function NavigatorShell({ directionSlug, children }: NavigatorShellProps)
   const { theme } = activeConfig;
 
   return (
-    <div className="relative flex h-screen bg-background">
+    <div className="relative flex h-[100dvh] bg-background">
       {/* Dark slate band behind the left ~half of the menu (Figma: x 0–100). */}
       <div
         className="pointer-events-none absolute inset-y-0 left-0 hidden w-[6.25rem] bg-[#52626F] md:block"
@@ -20,7 +20,7 @@ export function NavigatorShell({ directionSlug, children }: NavigatorShellProps)
 
       <AppSidebar directionSlug={directionSlug} theme={theme} />
 
-      <main className="relative z-10 min-w-0 flex-1 h-screen overflow-y-auto p-5 pt-0 md:p-8 md:pt-0 md:pr-20">
+      <main className="relative z-10 min-w-0 flex-1 h-[100dvh] overflow-y-auto p-5 pt-0 md:p-8 md:pt-0 md:pr-20">
         {children}
       </main>
     </div>

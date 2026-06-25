@@ -80,7 +80,7 @@ export function VideoModal({ videoUrl, label = "Видео" }: VideoModalProps) 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
         <DialogContent
           showCloseButton={false}
-          className="p-0 gap-0 overflow-hidden rounded-2xl border-0 bg-black w-[96vw] max-w-[96vw] sm:max-w-[96vw] h-[92vh] max-h-[92vh]"
+          className="p-0 gap-0 overflow-hidden border-0 bg-black w-screen max-w-[100vw] h-[100dvh] max-h-[100dvh] rounded-none sm:w-[96vw] sm:max-w-[96vw] sm:h-[92vh] sm:max-h-[92vh] sm:rounded-2xl"
         >
           <DialogTitle className="sr-only">{label}</DialogTitle>
 

@@ -16,9 +16,11 @@ import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 interface Props {
   node: NavNode;
   parentSlugPath: string;
+  /** When set, opens the matching accordion item on mount and scrolls to it. */
+  initialOpenSlug?: string;
 }
 
-export function PreparationAccordion({ node, parentSlugPath }: Props) {
+export function PreparationAccordion({ node, parentSlugPath, initialOpenSlug }: Props) {
   const accordionChildren = (node.children ?? []).filter(
     (c) => c.renderAs !== "button"
   );
@@ -26,7 +28,19 @@ export function PreparationAccordion({ node, parentSlugPath }: Props) {
     (c) => c.renderAs === "button"
   );
 
-  const [openId, setOpenId] = React.useState<string | null>(null);
+  const initialId = initialOpenSlug
+    ? (accordionChildren.find((c) => c.slug === initialOpenSlug)?.id ?? null)
+    : null;
+  const [openId, setOpenId] = React.useState<string | null>(initialId);
+  const openItemRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (initialId && openItemRef.current) {
+      openItemRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    // Run once on mount for the deep-linked item
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -50,8 +64,13 @@ export function PreparationAccordion({ node, parentSlugPath }: Props) {
             const isOpen = openId === child.id;
 
             return (
-              <Collapsible
+              <div
                 key={child.id}
+                id={child.slug}
+                ref={child.id === initialId ? openItemRef : undefined}
+                className="scroll-mt-24"
+              >
+              <Collapsible
                 open={isOpen}
                 onOpenChange={(v) => setOpenId(v ? child.id : null)}
               >
@@ -89,11 +108,12 @@ export function PreparationAccordion({ node, parentSlugPath }: Props) {
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  <div className="mx-1 space-y-4 rounded-b-2xl border border-t-0 border-primary/20 bg-primary/[0.03] px-5 pt-4 pb-5">
+                  <div className="mx-1 space-y-4 rounded-b-2xl border border-t-0 border-border bg-muted/40 px-5 pt-4 pb-5">
                     {child.content ? renderBlocks(child.content) : null}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+              </div>
             );
           })}
         </div>

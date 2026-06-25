@@ -57,6 +57,103 @@ function loadPersistedChat(key: string): PersistedChat | null {
   }
 }
 
+/** "Информация за клиента" shown as an overlay over the conversation. */
+function PersonaOverlay({
+  persona,
+  avatarSrc,
+  onClose,
+}: {
+  persona: PersonaData;
+  avatarSrc?: string;
+  onClose: () => void;
+}) {
+  const metaRows: [string, string][] = [
+    ["Тип контакт", persona.contactType],
+    ["Персонаж", persona.name],
+    ["Профил", persona.profile],
+    ["Контекст", persona.context],
+    ["Цел", persona.goal],
+    ["Логика на разговора", persona.conversationLogic],
+  ];
+
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col bg-white rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-primary text-white rounded-t-2xl shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <User className="h-4 w-4 shrink-0" />
+          <span className="font-semibold t-body truncate">Информация за клиента — {persona.name}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          className="text-white hover:bg-white/20 shrink-0"
+          aria-label="Затвори"
+          title="Обратно към разговора"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 min-h-0 px-4 py-3">
+        <div className="space-y-3">
+          {avatarSrc && (
+            <div className="float-right ml-3 mb-2">
+              <div className="relative w-24 h-32 rounded-xl overflow-hidden shadow-md ring-2 ring-primary/15">
+                <Image src={avatarSrc} alt={persona.name} fill className="object-cover object-center" sizes="96px" />
+              </div>
+            </div>
+          )}
+          {metaRows.map(([label, value]) => (
+            <div key={label}>
+              <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">{label}</p>
+              <p className="text-sm text-foreground mt-0.5 leading-snug">{value}</p>
+            </div>
+          ))}
+          <div className="clear-both" />
+          <div>
+            <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Примерни реплики</p>
+            <ul className="mt-1 space-y-1">
+              {(persona.sampleReplies ?? []).map((r, i) => (
+                <li key={i} className="text-sm text-foreground/80 italic leading-snug before:content-['›'] before:mr-1.5 before:text-primary/60">{r}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Възможни възражения</p>
+            <ul className="mt-1 space-y-1">
+              {(persona.objections ?? []).map((o, i) => (
+                <li key={i} className="text-sm text-foreground/80 leading-snug before:content-['!'] before:mr-1.5 before:text-destructive/70 before:font-bold">{o}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Подходящи техники</p>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {(persona.techniques ?? []).map((t, i) => (
+                <span key={i} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{t}</span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Следваща стъпка</p>
+            <p className="text-sm text-foreground mt-0.5 leading-snug">{persona.nextStep}</p>
+          </div>
+          <div className="rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5">
+            <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-destructive/80 mb-1">Какво да не правиш</p>
+            <p className="text-sm text-foreground/80 leading-snug">{persona.doNotDo}</p>
+          </div>
+        </div>
+      </ScrollArea>
+      <div className="border-t px-4 py-3 shrink-0">
+        <Button className="w-full gap-2" onClick={onClose}>
+          <ChevronLeft className="h-4 w-4" />
+          Обратно към разговора
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ChatWindow({
   botKey,
   botTitle,
@@ -291,184 +388,98 @@ export function ChatWindow({
     );
   }
 
-  // ── Persona panel view ──────────────────────────────────────────────────────
-  if (showPersona && persona) {
-    const metaRows: [string, string][] = [
-      ["Тип контакт", persona.contactType],
-      ["Персонаж", persona.name],
-      ["Профил", persona.profile],
-      ["Контекст", persona.context],
-      ["Цел", persona.goal],
-      ["Логика на разговора", persona.conversationLogic],
-    ];
-    return (
-      <div className={cn("flex flex-col h-full bg-white rounded-2xl overflow-hidden shadow-xl", className)}>
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-primary text-white rounded-t-2xl shrink-0">
-          <div className="flex items-center gap-2">
+  // Persona ("Информация за клиента") is shown as an overlay inside the chat
+  // window (see <PersonaOverlay/> at the end of the main return), so its close
+  // button returns to the conversation instead of closing the whole chat.
+
+  return (
+    <div className={cn("relative flex flex-col h-full bg-white rounded-2xl overflow-hidden shadow-xl", className)}>
+      {/* Header */}
+      <div className="border-b bg-primary text-white rounded-t-2xl shrink-0">
+        {/* Row 1: identity + window controls */}
+        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {avatarSrc && (
+              <Avatar className="h-8 w-8 shrink-0 ring-2 ring-white/40">
+                <AvatarImage src={avatarSrc} alt={botTitle} className="object-cover object-[50%_15%]" />
+                <AvatarFallback className="bg-white/20 text-white text-xs font-bold">
+                  {botTitle.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            <span className="font-semibold t-body truncate">{botTitle}</span>
+            {kind === "simulation" && (
+              <Badge className="hidden sm:inline-flex bg-white/20 text-white border-white/30 text-xs shrink-0">Симулация</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => setShowPersona(false)}
+              onClick={restartConversation}
               className="text-white hover:bg-white/20"
-              aria-label="Назад"
+              title={kind === "simulation" ? "Започни симулацията наново" : "Започни разговора наново"}
+              aria-label="Рестартирай разговора"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4" />
             </Button>
-            <User className="h-4 w-4 shrink-0" />
-            <span className="font-semibold t-body">Персонаж — {persona.name}</span>
+            <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-white hover:bg-white/20" aria-label="Затвори">
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-white hover:bg-white/20">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
-        <ScrollArea className="flex-1 min-h-0 px-4 py-3">
-          <div className="space-y-3">
-            {/* Photo floated right so text wraps around it */}
-            {avatarSrc && (
-              <div className="float-right ml-3 mb-2">
-                <div className="relative w-24 h-32 rounded-xl overflow-hidden shadow-md ring-2 ring-primary/15">
-                  <Image
-                    src={avatarSrc}
-                    alt={persona.name}
-                    fill
-                    className="object-cover object-center"
-                    sizes="96px"
-                  />
-                </div>
-              </div>
-            )}
-            {metaRows.map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">{label}</p>
-                <p className="text-sm text-foreground mt-0.5 leading-snug">{value}</p>
-              </div>
-            ))}
-            <div className="clear-both" />
-            <div>
-              <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Примерни реплики</p>
-              <ul className="mt-1 space-y-1">
-                {(persona.sampleReplies ?? []).map((r, i) => (
-                  <li key={i} className="text-sm text-foreground/80 italic leading-snug before:content-['›'] before:mr-1.5 before:text-primary/60">{r}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Възможни възражения</p>
-              <ul className="mt-1 space-y-1">
-                {(persona.objections ?? []).map((o, i) => (
-                  <li key={i} className="text-sm text-foreground/80 leading-snug before:content-['!'] before:mr-1.5 before:text-destructive/70 before:font-bold">{o}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Подходящи техники</p>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {(persona.techniques ?? []).map((t, i) => (
-                  <span key={i} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{t}</span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-primary/80">Следваща стъпка</p>
-              <p className="text-sm text-foreground mt-0.5 leading-snug">{persona.nextStep}</p>
-            </div>
-            <div className="rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5">
-              <p className="text-[0.65rem] font-extrabold uppercase tracking-widest text-destructive/80 mb-1">Какво да не правиш</p>
-              <p className="text-sm text-foreground/80 leading-snug">{persona.doNotDo}</p>
-            </div>
-          </div>
-        </ScrollArea>
-        <div className="border-t px-4 py-3 shrink-0">
-          <Button className="w-full gap-2" onClick={() => setShowPersona(false)}>
-            <ChevronLeft className="h-4 w-4" />
-            Обратно към разговора
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className={cn("flex flex-col h-full bg-white rounded-2xl overflow-hidden shadow-xl", className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-primary text-white rounded-t-2xl shrink-0">
-        <div className="flex items-center gap-2.5">
-          {avatarSrc && (
-            <Avatar className="h-8 w-8 shrink-0 ring-2 ring-white/40">
-              <AvatarImage src={avatarSrc} alt={botTitle} className="object-cover object-[50%_15%]" />
-              <AvatarFallback className="bg-white/20 text-white text-xs font-bold">
-                {botTitle.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          <span className="font-semibold t-body">{botTitle}</span>
-          {kind === "simulation" && (
-            <Badge className="bg-white/20 text-white border-white/30 text-xs">Симулация</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Persona info button — always visible for simulations with persona */}
-          {kind === "simulation" && persona && (
-            <Button
-              size="sm"
-              onClick={() => setShowPersona(true)}
-              style={{
-                backgroundColor: "#dce3e8",
-                color: "#3d4a54",
-                boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.75)",
-              }}
-              className="font-semibold text-xs px-3 border border-slate-300/60 hover:bg-slate-200"
-            >
-              Информация за клиента
-            </Button>
-          )}
-          {/* Analyze button — always visible for simulations, disabled before first exchange */}
-          {kind === "simulation" && !ended && (
-            <Button
-              size="sm"
-              onClick={handleEndSimulation}
-              disabled={analysisLoading || !conversationId}
-              style={{
-                backgroundColor: "#ffffff",
-                color: conversationId ? "#1a2530" : "#9baab3",
-                boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
-              }}
-              className="font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
-              title={!conversationId ? "Изпрати поне едно съобщение, за да анализираш" : "Анализирай разговора"}
-            >
-              {analysisLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
-              Анализирай разговора
-            </Button>
-          )}
-          {analysis && !ended && (
-            <Button
-              size="sm"
-              onClick={() => setShowAnalysis(true)}
-              style={{
-                backgroundColor: "#ffffff",
-                color: "#1a2530",
-                boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
-              }}
-              className="font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
-            >
-              <BarChart2 className="h-3.5 w-3.5" />
-              Виж анализа
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={restartConversation}
-            className="text-white hover:bg-white/20"
-            title={kind === "simulation" ? "Започни симулацията наново" : "Започни разговора наново"}
-            aria-label="Рестартирай разговора"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-white hover:bg-white/20">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        {/* Row 2: primary actions (simulation only) — Информация за клиента + Анализ */}
+        {kind === "simulation" && (
+          <div className="flex items-center gap-2 px-4 pb-3">
+            {persona && (
+              <Button
+                size="sm"
+                onClick={() => setShowPersona(true)}
+                style={{
+                  backgroundColor: "#dce3e8",
+                  color: "#3d4a54",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.75)",
+                }}
+                className="flex-1 sm:flex-none justify-center font-semibold text-xs px-3 border border-slate-300/60 hover:bg-slate-200"
+              >
+                Информация за клиента
+              </Button>
+            )}
+            {!ended && (
+              <Button
+                size="sm"
+                onClick={handleEndSimulation}
+                disabled={analysisLoading || !conversationId}
+                style={{
+                  backgroundColor: "#ffffff",
+                  color: conversationId ? "#1a2530" : "#9baab3",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
+                }}
+                className="flex-1 sm:flex-none justify-center font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
+                title={!conversationId ? "Изпрати поне едно съобщение, за да анализираш" : "Анализирай разговора"}
+              >
+                {analysisLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
+                Анализирай разговора
+              </Button>
+            )}
+            {analysis && !ended && (
+              <Button
+                size="sm"
+                onClick={() => setShowAnalysis(true)}
+                style={{
+                  backgroundColor: "#ffffff",
+                  color: "#1a2530",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
+                }}
+                className="flex-1 sm:flex-none justify-center font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
+              >
+                <BarChart2 className="h-3.5 w-3.5" />
+                Виж анализа
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -613,6 +624,11 @@ export function ChatWindow({
           </p>
         )}
       </div>
+
+      {/* Persona overlay — opens over the conversation; closing returns to chat */}
+      {showPersona && persona && (
+        <PersonaOverlay persona={persona} avatarSrc={avatarSrc} onClose={() => setShowPersona(false)} />
+      )}
     </div>
   );
 }

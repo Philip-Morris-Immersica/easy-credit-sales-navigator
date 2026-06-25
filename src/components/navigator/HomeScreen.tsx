@@ -138,17 +138,31 @@ export function HomeScreen() {
       </main>
 
       {/* Footer — bottom padding = 1.25rem (20px) to align logo bottom with the bot widget's bottom-5 */}
-      <footer className="grid grid-cols-3 items-center" style={{ padding: "clamp(0.5rem, 1vh, 0.85rem) clamp(1.5rem, 3vw, 3rem) 1.25rem" }}>
-        <div className="flex justify-start">
-          <Image src={theme.logoRed} alt={theme.name} width={185} height={52} className="object-contain" priority />
+      <footer style={{ padding: "clamp(0.5rem, 1vh, 0.85rem) clamp(1.5rem, 3vw, 3rem) 1.25rem" }}>
+        {/* Desktop: logo left, partner credit centered */}
+        <div className="hidden sm:grid grid-cols-3 items-center">
+          <div className="flex justify-start">
+            <Image src={theme.logoRed} alt={theme.name} width={185} height={52} className="object-contain" priority />
+          </div>
+          <div className="flex items-center justify-center gap-2 text-foreground/50" style={{ fontSize: "0.8125rem" }}>
+            <span>Осъществено от</span>
+            {theme.partnerLogo && (
+              <Image src={theme.partnerLogo} alt={theme.partnerName ?? "Partner"} width={91} height={16} className="object-contain opacity-70" />
+            )}
+          </div>
+          <div aria-hidden />
         </div>
-        <div className="flex items-center justify-center gap-2 text-foreground/50" style={{ fontSize: "0.8125rem" }}>
-          <span>Осъществено от</span>
+
+        {/* Mobile: EasyCredit logo stays left; "Осъществено от" + partner logo stacked & centered beneath */}
+        <div className="flex sm:hidden flex-col gap-2">
+          <Image src={theme.logoRed} alt={theme.name} width={150} height={42} className="h-9 w-auto self-start object-contain" priority />
           {theme.partnerLogo && (
-            <Image src={theme.partnerLogo} alt={theme.partnerName ?? "Partner"} width={91} height={16} className="object-contain opacity-70" />
+            <div className="flex flex-col items-center gap-0.5 self-center text-foreground/50" style={{ fontSize: "0.7rem" }}>
+              <span>Осъществено от</span>
+              <Image src={theme.partnerLogo} alt={theme.partnerName ?? "Partner"} width={91} height={16} className="object-contain opacity-70" />
+            </div>
           )}
         </div>
-        <div aria-hidden />
       </footer>
     </div>
   );

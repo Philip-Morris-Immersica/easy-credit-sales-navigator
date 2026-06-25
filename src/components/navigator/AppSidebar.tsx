@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Home } from "lucide-react";
+import { Home, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavNode, NavigatorTheme } from "@/components/navigator/types";
 import { activeConfig } from "@/content";
@@ -273,18 +273,29 @@ export function AppSidebar({ directionSlug, theme }: AppSidebarProps) {
 
   return (
     <>
-      {/* Mobile hamburger */}
-      <button
-        onClick={() => setMobileOpen((v) => !v)}
-        aria-label={mobileOpen ? "Затвори менюто" : "Отвори менюто"}
-        className="fixed top-3 left-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#52626F] text-white shadow-md md:hidden"
-      >
-        <span className="flex w-4 flex-col items-center justify-center gap-[4px]">
-          <span className={cn("block h-0.5 w-4 bg-current transition-transform duration-200", mobileOpen && "translate-y-[6px] rotate-45")} />
-          <span className={cn("block h-0.5 w-4 bg-current transition-opacity duration-200", mobileOpen && "opacity-0")} />
-          <span className={cn("block h-0.5 w-4 bg-current transition-transform duration-200", mobileOpen && "-translate-y-[6px] -rotate-45")} />
-        </span>
-      </button>
+      {/* Mobile top-left controls — menu + home, shown only when the drawer is closed */}
+      {!mobileOpen && (
+        <div className="fixed top-3 left-3 z-50 flex items-center gap-2 md:hidden">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Отвори менюто"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#52626F] text-white shadow-md transition-colors hover:bg-primary"
+          >
+            <span className="flex w-4 flex-col items-center justify-center gap-[4px]">
+              <span className="block h-0.5 w-4 bg-current" />
+              <span className="block h-0.5 w-4 bg-current" />
+              <span className="block h-0.5 w-4 bg-current" />
+            </span>
+          </button>
+          <Link
+            href="/"
+            aria-label="Начало"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#52626F] text-white shadow-md transition-colors hover:bg-primary"
+          >
+            <Home className="h-[1.15rem] w-[1.15rem]" />
+          </Link>
+        </div>
+      )}
 
       {/* Mobile backdrop */}
       {mobileOpen && (
@@ -307,6 +318,14 @@ export function AppSidebar({ directionSlug, theme }: AppSidebarProps) {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
+        {/* Close button — top-right of the menu */}
+        <button
+          onClick={closeMobile}
+          aria-label="Затвори менюто"
+          className="absolute top-3 right-3 z-50 flex h-9 w-9 items-center justify-center rounded-xl bg-[#3f4d57] text-white shadow-md transition-colors hover:bg-primary"
+        >
+          <X className="h-4 w-4" />
+        </button>
         <SidebarContents directionSlug={directionSlug} theme={theme} onLinkClick={closeMobile} />
       </aside>
     </>
