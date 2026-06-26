@@ -137,8 +137,13 @@ export function HomeScreen() {
         </div>
       </main>
 
-      {/* Footer — bottom padding = 1.25rem (20px) to align logo bottom with the bot widget's bottom-5 */}
-      <footer style={{ padding: "clamp(0.5rem, 1vh, 0.85rem) clamp(1.5rem, 3vw, 3rem) 1.25rem" }}>
+      {/* Footer — bottom padding = 1.25rem (20px) to align logo bottom with the bot widget's bottom-5.
+          Mobile horizontal inset = 1.25rem (20px) on both sides so it mirrors the bot widget's
+          right-5 inset and keeps the centered partner credit dead-centered in the viewport. */}
+      <footer
+        className="px-5 sm:[padding-inline:clamp(1.5rem,3vw,3rem)]"
+        style={{ paddingTop: "clamp(0.5rem, 1vh, 0.85rem)", paddingBottom: "1.25rem" }}
+      >
         {/* Desktop: logo left, partner credit centered */}
         <div className="hidden sm:grid grid-cols-3 items-center">
           <div className="flex justify-start">
@@ -153,11 +158,12 @@ export function HomeScreen() {
           <div aria-hidden />
         </div>
 
-        {/* Mobile: EasyCredit logo stays left; "Осъществено от" + partner logo stacked & centered beneath */}
-        <div className="flex sm:hidden flex-col gap-2">
-          <Image src={theme.logoRed} alt={theme.name} width={150} height={42} className="h-9 w-auto self-start object-contain" priority />
+        {/* Mobile: EasyCredit pinned left, height auto-matched to the full partner block
+            ("Осъществено от" + logo). Partner credit stays dead-centered (absolute EasyCredit is out of flow). */}
+        <div className="relative flex sm:hidden items-center justify-center">
+          <Image src={theme.logoRed} alt={theme.name} width={150} height={42} className="absolute inset-y-0 left-0 h-full w-auto object-contain" priority />
           {theme.partnerLogo && (
-            <div className="flex flex-col items-center gap-0.5 self-center text-foreground/50" style={{ fontSize: "0.7rem" }}>
+            <div className="flex flex-col items-center gap-0.5 text-foreground/50" style={{ fontSize: "0.7rem" }}>
               <span>Осъществено от</span>
               <Image src={theme.partnerLogo} alt={theme.partnerName ?? "Partner"} width={91} height={16} className="object-contain opacity-70" />
             </div>
