@@ -61,6 +61,11 @@ function BotCard({ bot }: { bot: { key: string; title: string; kind: string; mod
                 {bot.direction === "call" ? "Обаждане" : "Среща"}
               </Badge>
             )}
+            {bot.kind === "simulation" && (
+              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                + Промпт за анализ
+              </Badge>
+            )}
           </div>
         </div>
       </div>

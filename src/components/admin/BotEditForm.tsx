@@ -25,13 +25,13 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
     welcomeMessage: bot.welcomeMessage,
     systemPrompt: bot.systemPrompt,
     model: bot.model ?? "gpt-4.1-mini",
-    temperature: bot.temperature ?? 0.7,
-    maxTokens: bot.maxTokens ?? 2000,
+    temperature: Number(bot.temperature ?? 0.7),
+    maxTokens: Number(bot.maxTokens ?? 2000),
     // Analysis
     analysisPrompt: bot.analysisPrompt ?? "",
     analysisModel: bot.analysisModel ?? "",
-    analysisTemperature: bot.analysisTemperature ?? 0.3,
-    analysisMaxTokens: bot.analysisMaxTokens ?? 1500,
+    analysisTemperature: Number(bot.analysisTemperature ?? 0.3),
+    analysisMaxTokens: Number(bot.analysisMaxTokens ?? 1500),
     // General
     enabled: bot.enabled ?? true,
   });
@@ -115,11 +115,11 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="t-body font-medium">Температура</Label>
-              <span className="t-small font-mono text-muted-foreground">{form.temperature.toFixed(2)}</span>
+              <span className="t-small font-mono text-muted-foreground">{Number(form.temperature).toFixed(2)}</span>
             </div>
             <Slider
-              value={[form.temperature]}
-              onValueChange={(vals) => update("temperature", (vals as number[])[0])}
+              value={[Number(form.temperature)]}
+              onValueChange={(vals) => update("temperature", Number((vals as number[])[0]))}
               min={0} max={2} step={0.05}
             />
             <p className="t-small text-muted-foreground">По-ниска = по-прецизен · По-висока = по-творчески</p>
@@ -184,11 +184,11 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="t-body font-medium">Температура</Label>
-                <span className="t-small font-mono text-muted-foreground">{form.analysisTemperature.toFixed(2)}</span>
+                <span className="t-small font-mono text-muted-foreground">{Number(form.analysisTemperature).toFixed(2)}</span>
               </div>
               <Slider
-                value={[form.analysisTemperature]}
-                onValueChange={(vals) => update("analysisTemperature", (vals as number[])[0])}
+                value={[Number(form.analysisTemperature)]}
+                onValueChange={(vals) => update("analysisTemperature", Number((vals as number[])[0]))}
                 min={0} max={1} step={0.05}
               />
               <p className="t-small text-muted-foreground">

@@ -27,6 +27,17 @@ export default async function BotDetailPage({
 
   const models = await db.select({ model: modelPricing.model }).from(modelPricing);
 
+  const CORE_MODELS = [
+    "gpt-4.1-mini",
+    "gpt-4.1",
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4.1-nano",
+    "o4-mini",
+  ];
+  const dbModels = models.map((m) => m.model);
+  const availableModels = [...new Set([...CORE_MODELS, ...dbModels])];
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
@@ -35,7 +46,7 @@ export default async function BotDetailPage({
         </Link>
         <h1 className="t-heading font-bold">{bot.title}</h1>
       </div>
-      <BotEditForm bot={bot} availableModels={models.map((m) => m.model)} />
+      <BotEditForm bot={bot} availableModels={availableModels} />
     </div>
   );
 }
