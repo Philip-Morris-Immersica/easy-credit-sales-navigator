@@ -26,6 +26,13 @@ interface UseSpeechRecognitionReturn {
 // How often (ms) to send the audio-so-far for a live preview transcription.
 const PARTIAL_INTERVAL_MS = 2500;
 
+// Silence-based auto-stop. We monitor microphone loudness and, once the user
+// has actually spoken, automatically stop recording after a short stretch of
+// continuous silence — so the mic doesn't stay open forever.
+const SILENCE_RMS_THRESHOLD = 0.015; // below this RMS amplitude counts as silence
+const SILENCE_TIMEOUT_MS = 2500; // continuous silence before auto-stop
+const SILENCE_CHECK_MS = 150; // how often to sample loudness
+
 function pickMimeType(): string {
   if (typeof MediaRecorder === "undefined") return "";
   const candidates = [
@@ -78,6 +85,15 @@ export function useSpeechRecognition(
   const partialBusyRef = useRef(false);
   const stoppingRef = useRef(false);
 
+  // Silence detection (Web Audio) for automatic stop.
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSpeechAtRef = useRef(0);
+  const speechDetectedRef = useRef(false);
+  // Holds the latest `stop` implementation so the silence loop (created in
+  // `start`) can call it even though `stop` is defined afterwards.
+  const stopRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     onFinalRef.current = onFinal;
   }, [onFinal]);
@@ -104,7 +120,7 @@ export function useSpeechRecognition(
       const form = new FormData();
       const ext = blob.type.includes("mp4") ? "mp4" : "webm";
       form.append("audio", blob, `audio.${ext}`);
-      form.append("model", final ? "gpt-4o-transcribe" : "gpt-4o-mini-transcribe");
+      form.append("model", "gpt-4o-transcribe");
       try {
         const res = await fetch("/api/transcribe", { method: "POST", body: form });
         if (!res.ok) return null;
@@ -122,6 +138,15 @@ export function useSpeechRecognition(
       clearInterval(partialTimerRef.current);
       partialTimerRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearInterval(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {/* already closed */});
+      audioContextRef.current = null;
+    }
+    speechDetectedRef.current = false;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     recorderRef.current = null;
@@ -181,6 +206,49 @@ export function useSpeechRecognition(
     setProcessing(false);
     setListening(true);
 
+    // Monitor loudness and auto-stop after a stretch of silence (once the user
+    // has actually spoken). Falls back to manual stop if Web Audio is missing.
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx();
+        const sourceNode = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        sourceNode.connect(analyser);
+        audioContextRef.current = audioCtx;
+        speechDetectedRef.current = false;
+        lastSpeechAtRef.current = Date.now();
+
+        const samples = new Uint8Array(analyser.frequencyBinCount);
+        silenceTimerRef.current = setInterval(() => {
+          if (stoppingRef.current || !recorderRef.current) return;
+          analyser.getByteTimeDomainData(samples);
+          let sumSquares = 0;
+          for (let i = 0; i < samples.length; i++) {
+            const deviation = (samples[i] - 128) / 128;
+            sumSquares += deviation * deviation;
+          }
+          const rms = Math.sqrt(sumSquares / samples.length);
+          const now = Date.now();
+          if (rms > SILENCE_RMS_THRESHOLD) {
+            speechDetectedRef.current = true;
+            lastSpeechAtRef.current = now;
+          } else if (
+            speechDetectedRef.current &&
+            now - lastSpeechAtRef.current > SILENCE_TIMEOUT_MS
+          ) {
+            stopRef.current();
+          }
+        }, SILENCE_CHECK_MS);
+      }
+    } catch {
+      /* silence detection unavailable — user can stop manually */
+    }
+
     // Periodic live preview while recording.
     partialTimerRef.current = setInterval(async () => {
       if (partialBusyRef.current || stoppingRef.current) return;
@@ -223,6 +291,10 @@ export function useSpeechRecognition(
       }, 0);
     }
   }, [cleanup]);
+
+  useEffect(() => {
+    stopRef.current = stop;
+  }, [stop]);
 
   const toggle = useCallback(async () => {
     if (recorderRef.current) stop();

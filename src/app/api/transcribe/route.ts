@@ -40,21 +40,33 @@ export async function POST(req: Request) {
 
   const audio = new Uint8Array(await file.arrayBuffer());
 
-  try {
-    const { text } = await transcribe({
-      model: openai.transcription(modelId),
-      audio,
-      providerOptions: {
-        openai: {
-          language: "bg",
-          prompt:
-            "Транскрипция на български език от търговски разговор за потребителски кредити.",
-        },
-      },
-    });
-    return Response.json({ text: text.trim() });
-  } catch (err) {
-    console.error("Transcription failed:", err);
-    return Response.json({ error: "Transcription failed" }, { status: 500 });
+  const providerOptions = {
+    openai: {
+      language: "bg",
+      prompt:
+        "Транскрипция на български език от търговски разговор за потребителски кредити.",
+    },
+  };
+
+  // Try the requested model first, fall back to whisper-1 on failure.
+  const modelsToTry =
+    modelId === "whisper-1" ? ["whisper-1"] : [modelId, "whisper-1"];
+
+  let lastErr: unknown;
+  for (const model of modelsToTry) {
+    try {
+      const { text } = await transcribe({
+        model: openai.transcription(model),
+        audio,
+        providerOptions,
+      });
+      return Response.json({ text: text.trim() });
+    } catch (err) {
+      console.error(`Transcription failed with model ${model}:`, err);
+      lastErr = err;
+    }
   }
+
+  console.error("All transcription models failed:", lastErr);
+  return Response.json({ error: "Transcription failed" }, { status: 500 });
 }

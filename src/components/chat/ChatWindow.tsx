@@ -188,6 +188,9 @@ export function ChatWindow({
   const [ended, setEnded] = useState(persisted?.ended ?? false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Set when the user hits "send" while voice capture is still running; the
+  // actual send is deferred until the final transcription lands in `input`.
+  const pendingSendRef = useRef(false);
 
   // Persist the conversation whenever it changes.
   useEffect(() => {
@@ -243,7 +246,15 @@ export function ChatWindow({
   }, [welcomeMessage, storageKey, stopVoice]);
 
   const sendMessage = useCallback(async () => {
-    if (!input.trim() || loading || ended) return;
+    if (loading || ended) return;
+    // Voice still capturing: stop it and defer the send until the final
+    // transcription has been appended to `input` (handled by the effect below).
+    if (listening || voiceProcessing) {
+      pendingSendRef.current = true;
+      stopVoice();
+      return;
+    }
+    if (!input.trim()) return;
     if (!session?.user) {
       alert("Моля влезте в профила си, за да използвате чата.");
       return;
@@ -315,7 +326,16 @@ export function ChatWindow({
       // Return focus to the input so the user can type the next reply immediately.
       setTimeout(() => textareaRef.current?.focus(), 0);
     }
-  }, [input, loading, ended, session, botKey, conversationId, isNew, stopVoice]);
+  }, [input, loading, ended, session, botKey, conversationId, isNew, stopVoice, listening, voiceProcessing]);
+
+  // Once voice capture has fully finished (final transcription appended to
+  // `input`), fire any send that was requested while still recording.
+  useEffect(() => {
+    if (pendingSendRef.current && !listening && !voiceProcessing) {
+      pendingSendRef.current = false;
+      if (input.trim()) sendMessage();
+    }
+  }, [listening, voiceProcessing, input, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -598,7 +618,7 @@ export function ChatWindow({
             <Button
               size="icon"
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
+              disabled={loading || (!input.trim() && !listening && !voiceProcessing)}
               className="shrink-0 rounded-xl"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -608,7 +628,7 @@ export function ChatWindow({
         {listening && (
           <p className="mt-1.5 px-1 text-[0.7rem] text-red-600 flex items-center gap-1">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
-            Записвам… говори на български, после натисни иконата за да спреш
+            Записвам… говори на български (спира автоматично при пауза)
           </p>
         )}
         {voiceProcessing && !listening && (
