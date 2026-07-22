@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const toStr = searchParams.get("to");
     const userIds = searchParams.getAll("userId");
 
-    const fromDate = fromStr ? new Date(fromStr) : new Date("2020-01-01");
+    const fromDate = fromStr ? new Date(fromStr) : new Date("2026-01-01");
     const toDate = toStr ? new Date(toStr) : new Date();
     toDate.setHours(23, 59, 59, 999);
 

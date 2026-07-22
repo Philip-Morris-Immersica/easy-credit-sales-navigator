@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         { metric: "Разговори", value: s.conversations },
         { metric: "Съобщения", value: s.messages },
         { metric: "Анализи", value: s.analyses },
-        { metric: "Разход (USD)", value: Number(s.totalCost).toFixed(6) },
+        { metric: "Разход (USD)", value: Number(s.totalCost).toFixed(4) },
       ]);
       autoWidth(sh);
     }
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       sh.addRows(
         (data.activeUsers as Array<Record<string, unknown>>).map((u) => ({
           ...u,
-          cost: Number(u.cost).toFixed(6),
+          cost: Number(u.cost).toFixed(4),
         }))
       );
       addTotalRow(sh, "cost", "Общо разход:");
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="report-${body.from}-${body.to}.xlsx"`,
+        "Content-Disposition": `attachment; filename="report_${body.from}_do_${body.to}.xlsx"`,
       },
     });
   } catch (err) {

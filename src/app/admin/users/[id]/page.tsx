@@ -118,7 +118,7 @@ export default async function AdminUserDetailPage({
           { label: "Консултации", value: consultConvs.length },
           { label: "Общо реплики", value: totalMsgs },
           { label: "Общо токени", value: `${(totalTokens / 1000).toFixed(1)}K` },
-          { label: "Общ разход", value: `$${totalCost.toFixed(4)}` },
+          { label: "Общ разход (USD)", value: `$${totalCost.toFixed(4)} USD` },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-border p-4">
             <p className="t-small text-muted-foreground">{s.label}</p>
@@ -188,7 +188,10 @@ export default async function AdminUserDetailPage({
                 </td>
                 <td className="px-4 py-3 t-small text-muted-foreground">{formatDate(row.startedAt)}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/me/conversations/${row.id}`} className="text-primary hover:underline t-small">
+                  <Link
+                    href={`/me/conversations/${row.id}?from=${encodeURIComponent(`/admin/users/${id}`)}`}
+                    className="text-primary hover:underline t-small"
+                  >
                     Виж →
                   </Link>
                 </td>

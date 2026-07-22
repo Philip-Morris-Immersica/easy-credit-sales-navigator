@@ -185,7 +185,7 @@ export default async function AdminDashboardPage() {
                   <p className="t-body font-medium">{u.name ?? "—"}</p>
                   <p className="t-small text-muted-foreground">{u.email}</p>
                 </div>
-                <span className="t-body font-medium">{u.count} разговора</span>
+                <span className="t-body font-medium">{u.count} {u.count === 1 ? "разговор" : "разговора"}</span>
               </div>
             ))}
             {topUsers.length === 0 && (
@@ -209,9 +209,9 @@ export default async function AdminDashboardPage() {
               >
                 <div>
                   <p className="t-body font-medium">{s.title}</p>
-                  <p className="t-small text-muted-foreground">{s.uniqueUsers} потребители</p>
+                  <p className="t-small text-muted-foreground">{s.uniqueUsers} {s.uniqueUsers === 1 ? "потребител" : "потребители"}</p>
                 </div>
-                <span className="t-body font-medium">{s.runs} симулации</span>
+                <span className="t-body font-medium">{s.runs} {s.runs === 1 ? "симулация" : "симулации"}</span>
               </Link>
             ))}
             {topSimulations.length === 0 && (
