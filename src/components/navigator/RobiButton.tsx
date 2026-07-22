@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import { getBotAvatar } from "@/lib/bot-avatars";
 
 const ROBI_BOT_KEY = "consultant";
-const ROBI_TITLE = "Роби — Консултант";
+const ROBI_TITLE = "Роби — Обучителен асистент";
 const ROBI_WELCOME =
   "Здравей! Аз съм Роби. С какво мога да помогна днес — имаш въпрос от курса, искаш да обсъдим симулация, или нещо друго?";
 
