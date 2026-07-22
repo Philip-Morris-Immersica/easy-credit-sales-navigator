@@ -186,6 +186,16 @@ export function ChatWindow({
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [ended, setEnded] = useState(persisted?.ended ?? false);
+
+  // Trainee must complete at least this many replies before the analysis
+  // is meaningful — otherwise the AI has too little material to work with.
+  const MIN_USER_TURNS_FOR_ANALYSIS = 6;
+  const userTurnCount = messages.filter((m) => m.role === "user").length;
+  const turnsRemaining = Math.max(0, MIN_USER_TURNS_FOR_ANALYSIS - userTurnCount);
+  // Already-ended conversations should never be blocked by the turn count
+  // (the button is hidden once `ended` anyway, but this keeps the guard
+  // consistent if that ever changes).
+  const canAnalyze = ended || userTurnCount >= MIN_USER_TURNS_FOR_ANALYSIS;
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Set when the user hits "send" while voice capture is still running; the
@@ -394,7 +404,7 @@ export function ChatWindow({
           </Button>
         </div>
         <ScrollArea className="flex-1 min-h-0 overflow-hidden p-4">
-          <AnalysisFeedback analysis={analysis} />
+          <AnalysisFeedback analysis={analysis} conversationId={conversationId ?? undefined} title={`Анализ — ${botTitle}`} />
           <div className="mt-4 flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowAnalysis(false)}>
               Разговорът
@@ -470,14 +480,20 @@ export function ChatWindow({
               <Button
                 size="sm"
                 onClick={handleEndSimulation}
-                disabled={analysisLoading || !conversationId}
+                disabled={analysisLoading || !conversationId || !canAnalyze}
                 style={{
                   backgroundColor: "#ffffff",
-                  color: conversationId ? "#1a2530" : "#9baab3",
+                  color: conversationId && canAnalyze ? "#1a2530" : "#9baab3",
                   boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
                 }}
                 className="flex-1 sm:flex-none justify-center font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
-                title={!conversationId ? "Изпрати поне едно съобщение, за да анализираш" : "Анализирай разговора"}
+                title={
+                  !conversationId
+                    ? "Изпрати поне едно съобщение, за да анализираш"
+                    : !canAnalyze
+                      ? `Проведи поне ${MIN_USER_TURNS_FOR_ANALYSIS} реплики, за да анализираш (остават още ${turnsRemaining})`
+                      : "Анализирай разговора"
+                }
               >
                 {analysisLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
                 Анализирай разговора

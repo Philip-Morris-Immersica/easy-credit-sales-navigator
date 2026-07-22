@@ -201,7 +201,10 @@ export default async function AdminSimulationDetailPage({
                   ) : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <Link href={`/me/conversations/${row.id}`} className="text-primary hover:underline t-small">
+                  <Link
+                    href={`/me/conversations/${row.id}?from=${encodeURIComponent(`/admin/simulations/${key}`)}`}
+                    className="text-primary hover:underline t-small"
+                  >
                     Виж →
                   </Link>
                 </td>

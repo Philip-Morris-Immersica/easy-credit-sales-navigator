@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { DateField } from "@/components/admin/DateField";
 import { Loader2, Download, BarChart2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -86,7 +87,7 @@ export function ReportsClient() {
     if (p === "today") fromDate.setHours(0, 0, 0, 0);
     else if (p === "7d") fromDate.setDate(now.getDate() - 7);
     else if (p === "30d") fromDate.setDate(now.getDate() - 30);
-    else fromDate.setFullYear(2020, 0, 1);
+    else fromDate.setFullYear(2026, 0, 1);
     setFrom(fromDate.toISOString().slice(0, 10));
     setTo(now.toISOString().slice(0, 10));
   }
@@ -128,7 +129,7 @@ export function ReportsClient() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `report-${from}-${to}.xlsx`;
+      a.download = `report_${from}_do_${to}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -158,11 +159,11 @@ export function ReportsClient() {
         <div className="flex gap-4 items-center flex-wrap">
           <div className="space-y-1">
             <Label className="t-small">От</Label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
+            <DateField value={from} onChange={setFrom} />
           </div>
           <div className="space-y-1">
             <Label className="t-small">До</Label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
+            <DateField value={to} onChange={setTo} />
           </div>
         </div>
       </div>
@@ -222,7 +223,7 @@ export function ReportsClient() {
                   { label: "Разговори", value: reportData.summary.conversations },
                   { label: "Съобщения", value: reportData.summary.messages },
                   { label: "Анализи", value: reportData.summary.analyses },
-                  { label: "Разход (USD)", value: `$${reportData.summary.totalCost.toFixed(6)}` },
+                  { label: "Разход (USD)", value: `$${reportData.summary.totalCost.toFixed(4)} USD` },
                 ].map((s) => (
                   <div key={s.label} className="text-center bg-muted/20 rounded-xl p-3">
                     <div className="t-heading font-bold">{s.value}</div>
@@ -242,7 +243,7 @@ export function ReportsClient() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${Number(v).toFixed(4)}`} />
-                  <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(6) : v}`, "Разход"]} />
+                  <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(4) : v} USD`, "Разход"]} />
                   <Bar dataKey="cost" fill="#D6071A" name="Разход" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -253,7 +254,7 @@ export function ReportsClient() {
                     <th className="text-right py-1.5">Разговори</th>
                     <th className="text-right py-1.5">Съобщения</th>
                     <th className="text-right py-1.5">Токени</th>
-                    <th className="text-right py-1.5">Разход</th>
+                    <th className="text-right py-1.5">Разход (USD)</th>
                   </tr>
                 </thead>
                 <tbody>

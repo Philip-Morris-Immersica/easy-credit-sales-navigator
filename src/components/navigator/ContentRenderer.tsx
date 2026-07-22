@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import type { ContentBlock, CollapsibleBlock, TechniquesBlock } from "@/components/navigator/types";
-import { BlockInteractive, CollapsibleGroupRenderer } from "@/components/navigator/BlockInteractive";
+import type { ContentBlock, TechniquesBlock } from "@/components/navigator/types";
+import { BlockInteractive, CollapsibleRenderer } from "@/components/navigator/BlockInteractive";
 import { DuotoneIcon } from "@/components/navigator/DuotoneIcon";
 import {
   Target, Wrench, MessageSquare, AlertCircle, ChevronRight, ChevronDown,
@@ -155,28 +155,43 @@ export function ContentRenderer({ blocks, title, icon, iconAccent, iconImage, hi
 }
 
 /** Renders an array of ContentBlocks — called recursively by container blocks.
- *  Consecutive collapsible blocks at the same level are grouped into a
- *  radio-style accordion (opening one closes the others). */
+ *  All sibling collapsible blocks within this array form ONE exclusive
+ *  (radio-style) accordion group, so opening one collapses the others —
+ *  even if they are not consecutive (e.g. separated by a heading or
+ *  paragraph). Collapsibles nested inside another collapsible's own
+ *  `blocks` are rendered via a fresh, independent call to `renderBlocks`
+ *  (see `CollapsibleRenderer`'s `render` prop), so nested branches keep
+ *  their own exclusive group and may stay open alongside their parent. */
 export function renderBlocks(blocks: ContentBlock[]): React.ReactNode {
-  const result: React.ReactNode[] = [];
-  let i = 0;
-  while (i < blocks.length) {
-    if (blocks[i].type === "collapsible") {
-      const groupStart = i;
-      const group: CollapsibleBlock[] = [];
-      while (i < blocks.length && blocks[i].type === "collapsible") {
-        group.push(blocks[i] as CollapsibleBlock);
-        i++;
-      }
-      result.push(
-        <CollapsibleGroupRenderer key={groupStart} blocks={group} render={renderBlocks} />
-      );
-    } else {
-      result.push(<Block key={i} block={blocks[i]} />);
-      i++;
-    }
+  const hasCollapsible = blocks.some((b) => b.type === "collapsible");
+  if (!hasCollapsible) {
+    return blocks.map((block, i) => <Block key={i} block={block} />);
   }
-  return result;
+  return <SiblingBlocksRenderer blocks={blocks} />;
+}
+
+/** Owns the "which sibling collapsible is open" state for a single level of
+ *  blocks, and renders every block (collapsible or not) in original order. */
+function SiblingBlocksRenderer({ blocks }: { blocks: ContentBlock[] }) {
+  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  return (
+    <>
+      {blocks.map((block, i) => {
+        if (block.type === "collapsible") {
+          return (
+            <CollapsibleRenderer
+              key={i}
+              block={block}
+              render={renderBlocks}
+              open={openIndex === i}
+              onOpenChange={(isOpen) => setOpenIndex(isOpen ? i : null)}
+            />
+          );
+        }
+        return <Block key={i} block={block} />;
+      })}
+    </>
+  );
 }
 
 function Block({ block }: { block: ContentBlock }) {

@@ -112,7 +112,7 @@ function getStageIconName(label: string): string {
 
 // ─── CollapsibleRenderer ─────────────────────────────────────────────────
 
-function CollapsibleRenderer({
+export function CollapsibleRenderer({
   block,
   render,
   open: externalOpen,
@@ -187,33 +187,6 @@ function CollapsibleRenderer({
         {render(block.blocks)}
       </CollapsibleContent>
     </Collapsible>
-  );
-}
-
-// ─── CollapsibleGroupRenderer ─────────────────────────────────────────────
-// Renders multiple sibling collapsibles as a radio-style accordion —
-// opening one automatically closes the others at the same level.
-
-export function CollapsibleGroupRenderer({
-  blocks,
-  render,
-}: {
-  blocks: CollapsibleBlock[];
-  render: RenderFn;
-}) {
-  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
-  return (
-    <div className="space-y-2">
-      {blocks.map((block, i) => (
-        <CollapsibleRenderer
-          key={i}
-          block={block}
-          render={render}
-          open={openIndex === i}
-          onOpenChange={(isOpen) => setOpenIndex(isOpen ? i : null)}
-        />
-      ))}
-    </div>
   );
 }
 

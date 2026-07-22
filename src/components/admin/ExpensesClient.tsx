@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/admin/DateField";
 import { Loader2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -57,7 +58,7 @@ export function ExpensesClient() {
     if (p === "today") fromDate.setHours(0, 0, 0, 0);
     else if (p === "7d") fromDate.setDate(now.getDate() - 7);
     else if (p === "30d") fromDate.setDate(now.getDate() - 30);
-    else fromDate.setFullYear(2020, 0, 1);
+    else fromDate.setFullYear(2026, 0, 1);
     setFrom(fromDate.toISOString().slice(0, 10));
     setTo(now.toISOString().slice(0, 10));
   }
@@ -95,11 +96,11 @@ export function ExpensesClient() {
         <div className="flex gap-4 items-end flex-wrap">
           <div className="space-y-1">
             <p className="t-small text-muted-foreground">От</p>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
+            <DateField value={from} onChange={setFrom} />
           </div>
           <div className="space-y-1">
             <p className="t-small text-muted-foreground">До</p>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
+            <DateField value={to} onChange={setTo} />
           </div>
           <Button onClick={load} disabled={loading} className="gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -113,7 +114,7 @@ export function ExpensesClient() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Общ разход", value: `$${data.totalCost.toFixed(4)}` },
+              { label: "Общ разход (USD)", value: `$${data.totalCost.toFixed(4)} USD` },
               { label: "Съобщения", value: data.totalMessages.toLocaleString() },
               { label: "Токени вход", value: `${(data.totalTokensIn / 1000).toFixed(1)}K` },
               { label: "Токени изход", value: `${(data.totalTokensOut / 1000).toFixed(1)}K` },
@@ -134,7 +135,7 @@ export function ExpensesClient() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v.toFixed(4)}`} />
-                  <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(4) : v}`, "Разход"]} />
+                  <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(4) : v} USD`, "Разход"]} />
                   <Line type="monotone" dataKey="cost" name="Разход" stroke="#D6071A" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -150,8 +151,8 @@ export function ExpensesClient() {
                   <BarChart data={data.modelBreakdown}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="model" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v.toFixed(3)}`} />
-                    <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(4) : v}`, "Разход"]} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v.toFixed(4)}`} />
+                    <Tooltip formatter={(v) => [`$${typeof v === "number" ? v.toFixed(4) : v} USD`, "Разход"]} />
                     <Bar dataKey="cost" name="Разход" fill="#D6071A" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -162,7 +163,7 @@ export function ExpensesClient() {
                       <th className="text-right py-1.5">Съобщения</th>
                       <th className="text-right py-1.5">Токени (вх)</th>
                       <th className="text-right py-1.5">Токени (изх)</th>
-                      <th className="text-right py-1.5">Разход</th>
+                      <th className="text-right py-1.5">Разход (USD)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,7 +191,7 @@ export function ExpensesClient() {
                       <tr className="text-muted-foreground border-b border-border">
                         <th className="text-left py-1.5">Потребител</th>
                         <th className="text-right py-1.5">Разговори</th>
-                        <th className="text-right py-1.5">Разход</th>
+                        <th className="text-right py-1.5">Разход (USD)</th>
                       </tr>
                     </thead>
                     <tbody>

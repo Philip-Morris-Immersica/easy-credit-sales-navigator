@@ -14,13 +14,27 @@ function formatTime(d: Date) {
   return new Date(d).toLocaleString("bg", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+/** Only allow internal `/admin...` paths as the back target — anything else
+ *  (external URLs, protocol-relative `//evil.com`, etc.) falls back to `/me`
+ *  to avoid an open redirect via the `from` query param. */
+function resolveBackHref(from: string | undefined): string {
+  if (from && from.startsWith("/admin") && !from.startsWith("//")) {
+    return from;
+  }
+  return "/me";
+}
+
 export default async function ConversationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const user = await requireAuth();
   const { id } = await params;
+  const { from } = await searchParams;
+  const backHref = resolveBackHref(from);
 
   const conv = await db
     .select()
@@ -65,7 +79,7 @@ export default async function ConversationPage({
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link href="/me" className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}>
+          <Link href={backHref} className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
@@ -127,13 +141,17 @@ export default async function ConversationPage({
         {analysis && (
           <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
             <h2 className="t-subheading font-semibold">Анализ</h2>
-            <AnalysisFeedback analysis={{
-              overallScore: analysis.overallScore ?? 0,
-              criteria: (analysis.criteria as Array<{ name: string; score: number; comment: string }>) ?? [],
-              strengths: analysis.strengths ?? [],
-              improvements: analysis.improvements ?? [],
-              summary: analysis.summary ?? "",
-            }} />
+            <AnalysisFeedback
+              analysis={{
+                overallScore: analysis.overallScore ?? 0,
+                criteria: (analysis.criteria as Array<{ name: string; score: number; comment: string }>) ?? [],
+                strengths: analysis.strengths ?? [],
+                improvements: analysis.improvements ?? [],
+                summary: analysis.summary ?? "",
+              }}
+              conversationId={id}
+              title={`Анализ — ${bot?.title ?? conv.title ?? "Разговор"}`}
+            />
           </div>
         )}
       </div>

@@ -132,7 +132,10 @@ export function ConversationsClient({ rows: initialRows, isIT, stats }: Props) {
                   ) : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <Link href={`/me/conversations/${row.id}`} className="text-primary hover:underline t-small">
+                  <Link
+                    href={`/me/conversations/${row.id}?from=${encodeURIComponent("/admin/conversations")}`}
+                    className="text-primary hover:underline t-small"
+                  >
                     Виж →
                   </Link>
                 </td>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DateField } from "@/components/admin/DateField";
 import { cn } from "@/lib/utils";
 import { Loader2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
@@ -73,7 +75,7 @@ export function AnalyticsClient() {
     const fromDate = new Date();
     if (p === "7d") fromDate.setDate(now.getDate() - 7);
     else if (p === "30d") fromDate.setDate(now.getDate() - 30);
-    else fromDate.setFullYear(2020, 0, 1);
+    else fromDate.setFullYear(2026, 0, 1);
     setFrom(fromDate.toISOString().slice(0, 10));
     setTo(now.toISOString().slice(0, 10));
   }
@@ -147,11 +149,11 @@ export function AnalyticsClient() {
         <div className="flex gap-4 items-end flex-wrap">
           <div className="space-y-1">
             <p className="t-small text-muted-foreground">От</p>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
+            <DateField value={from} onChange={setFrom} />
           </div>
           <div className="space-y-1">
             <p className="t-small text-muted-foreground">До</p>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-border rounded-lg px-3 py-1.5 t-small" />
+            <DateField value={to} onChange={setTo} />
           </div>
         </div>
 
@@ -228,7 +230,9 @@ export function AnalyticsClient() {
             )}
             <div className="bg-muted/20 rounded-xl p-5 border border-border">
               <p className="t-small font-semibold text-muted-foreground mb-3">AI Препоръки за екипа</p>
-              <p className="t-body whitespace-pre-line leading-relaxed">{summaryResult.summary}</p>
+              <div className="t-body leading-relaxed space-y-3 [&_h1]:t-heading [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:t-subheading [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:t-body [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1 [&_strong]:font-semibold">
+                <ReactMarkdown>{summaryResult.summary}</ReactMarkdown>
+              </div>
             </div>
           </div>
         )}
@@ -265,7 +269,7 @@ export function AnalyticsClient() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <Link
-                    href={`/me/conversations/${a.conversationId}`}
+                    href={`/me/conversations/${a.conversationId}?from=${encodeURIComponent("/admin/analytics")}`}
                     onClick={(e) => e.stopPropagation()}
                     className="t-small text-primary hover:underline"
                   >
