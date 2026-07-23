@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/auth-helpers";
 import db from "@/db";
 import { conversations, bots, analyses } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { abandonStaleSimulations } from "@/lib/conversations";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,10 @@ function formatDate(d: Date) {
 
 export default async function MePage() {
   const user = await requireAuth();
+
+  // Cheap DB-only cleanup: mark long-idle "active" simulations as abandoned
+  // before listing them. Intentionally does NOT run LLM analysis.
+  await abandonStaleSimulations(user.id);
 
   const rows = await db
     .select({

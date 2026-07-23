@@ -37,6 +37,45 @@ export async function POST(req: Request) {
   // Get or create conversation
   let convId = conversationId;
   if (newConversation || !convId) {
+    // Guard: a user may not start a new simulation while a previously
+    // started one is still active. Empty/never-started active simulations
+    // (no user messages yet) don't count — they don't block a new attempt.
+    if (bot.kind === "simulation") {
+      const activeSims = await db
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.userId, session.user.id),
+            eq(conversations.kind, "simulation"),
+            eq(conversations.status, "active")
+          )
+        );
+
+      for (const sim of activeSims) {
+        const hasUserMessage = await db
+          .select({ id: messages.id })
+          .from(messages)
+          .where(
+            and(eq(messages.conversationId, sim.id), eq(messages.role, "user"))
+          )
+          .limit(1)
+          .then((r) => r.length > 0);
+
+        if (hasUserMessage) {
+          return Response.json(
+            {
+              error:
+                "Имаш незавършена симулация. Приключи я (бутон „Анализирай разговора\") преди да започнеш нова.",
+              code: "ACTIVE_SIMULATION_EXISTS",
+              conversationId: sim.id,
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
     const [newConv] = await db
       .insert(conversations)
       .values({

@@ -297,6 +297,22 @@ export function ChatWindow({
       });
 
       if (!res.ok) {
+        if (res.status === 409) {
+          const err = await res.json().catch(() => ({}));
+          if (
+            (err as { code?: string }).code === "ACTIVE_SIMULATION_EXISTS"
+          ) {
+            const message =
+              (err as { error?: string }).error ||
+              "Имаш незавършена симулация. Приключи я преди да започнеш нова.";
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: message } : m
+              )
+            );
+            return;
+          }
+        }
         throw new Error(await res.text());
       }
 
