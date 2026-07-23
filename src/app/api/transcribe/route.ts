@@ -40,11 +40,17 @@ export async function POST(req: Request) {
 
   const audio = new Uint8Array(await file.arrayBuffer());
 
+  // Domain vocabulary biases the model toward EasyCredit-specific terms and
+  // common Bulgarian sales/credit jargon, improving accuracy on words that
+  // generic transcription tends to mishear.
   const providerOptions = {
     openai: {
       language: "bg",
       prompt:
-        "Транскрипция на български език от търговски разговор за потребителски кредити.",
+        "Транскрипция на български език от търговски разговор за потребителски кредити в EasyCredit (Изи Кредит). " +
+        "Възможни термини: кредит, потребителски кредит, рефинансиране, предварително одобрен, лихва, ГПР, " +
+        "вноска, месечна вноска, погасителен план, срок, главница, такса, застраховка, разсрочване, " +
+        "предсрочно погасяване, консултант, клиент, оферта, кредитен лимит, одобрение, евро.",
     },
   };
 

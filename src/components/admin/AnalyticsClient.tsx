@@ -169,7 +169,9 @@ export function AnalyticsClient() {
                     onChange={() => toggleUser(u.id)}
                     className="h-3.5 w-3.5 accent-primary"
                   />
-                  <span>{u.name ?? u.email}</span>
+                  {/* Consistent label: always anchor identity by email, prefix
+                      with the name only when present (#A2.9). */}
+                  <span>{u.name?.trim() ? `${u.name.trim()} — ${u.email}` : u.email}</span>
                 </label>
               ))}
             </div>
