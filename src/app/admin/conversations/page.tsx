@@ -8,7 +8,7 @@ import { ConversationsClient } from "@/components/admin/ConversationsClient";
 export default async function AdminConversationsPage() {
   await requireAdmin();
   const session = await auth();
-  const isIT = session?.user?.role === "it";
+  const canDelete = session?.user?.role === "admin" || session?.user?.role === "it";
 
   const rows = await db
     .select({
@@ -50,7 +50,7 @@ export default async function AdminConversationsPage() {
   return (
     <ConversationsClient
       rows={rows}
-      isIT={isIT}
+      canDelete={canDelete}
       stats={{ totalConvs, uniqueUsers, avgMessages, withAnalysis, analysisPercent }}
     />
   );

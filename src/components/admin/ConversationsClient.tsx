@@ -30,7 +30,7 @@ export interface ConversationRow {
 
 interface Props {
   rows: ConversationRow[];
-  isIT: boolean;
+  canDelete: boolean;
   stats: {
     totalConvs: number;
     uniqueUsers: number;
@@ -40,7 +40,7 @@ interface Props {
   };
 }
 
-export function ConversationsClient({ rows: initialRows, isIT, stats }: Props) {
+export function ConversationsClient({ rows: initialRows, canDelete, stats }: Props) {
   const [rows, setRows] = useState(initialRows);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export function ConversationsClient({ rows: initialRows, isIT, stats }: Props) {
               {[
                 "Потребител", "Бот", "Статус", "Реплики",
                 "Стартиран", "Последна активност", "Оценка", "Преглед",
-                ...(isIT ? [""] : []),
+                ...(canDelete ? [""] : []),
               ].map((h, i) => (
                 <th key={i} className="text-left px-4 py-3 t-small font-semibold text-muted-foreground">{h}</th>
               ))}
@@ -139,7 +139,7 @@ export function ConversationsClient({ rows: initialRows, isIT, stats }: Props) {
                     Виж →
                   </Link>
                 </td>
-                {isIT && (
+                {canDelete && (
                   <td className="px-4 py-3">
                     {confirmId === row.id ? (
                       <div className="flex items-center gap-1.5">

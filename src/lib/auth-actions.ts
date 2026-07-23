@@ -62,6 +62,7 @@ export type LoginFailureReason =
   | "no-user"
   | "bad-password"
   | "oauth-only"
+  | "deactivated"
   | "unknown";
 
 /**
@@ -75,7 +76,7 @@ export async function diagnoseLoginFailure(
   password: string
 ): Promise<{ reason: LoginFailureReason }> {
   const user = await db
-    .select({ passwordHash: users.passwordHash })
+    .select({ passwordHash: users.passwordHash, active: users.active })
     .from(users)
     .where(eq(users.email, email.toLowerCase()))
     .then((r) => r[0]);
@@ -85,6 +86,7 @@ export async function diagnoseLoginFailure(
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return { reason: "bad-password" };
+  if (!user.active) return { reason: "deactivated" };
 
   return { reason: "unknown" };
 }

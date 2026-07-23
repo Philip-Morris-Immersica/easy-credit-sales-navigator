@@ -43,6 +43,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
         if (!valid) return null;
 
+        // Deactivated accounts may not authenticate, even with correct credentials.
+        if (!user.active) return null;
+
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
@@ -102,10 +105,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider !== "credentials" && user.email) {
         const existing = await db
-          .select({ id: users.id, role: users.role })
+          .select({ id: users.id, role: users.role, active: users.active })
           .from(users)
           .where(eq(users.email, user.email))
           .then((r) => r[0]);
+
+        // Deactivated accounts may not authenticate via OAuth either.
+        if (existing && !existing.active) return false;
+
         const itEmail = process.env.INITIAL_IT_EMAIL?.toLowerCase();
         const isIT = itEmail && user.email.toLowerCase() === itEmail;
         if (!existing) {

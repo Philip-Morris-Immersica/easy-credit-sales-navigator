@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { AnalysisFeedback } from "@/components/chat/AnalysisFeedback";
+import { DeleteConversationButton } from "@/components/admin/DeleteConversationButton";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 
@@ -47,6 +48,10 @@ export default async function ConversationPage({
   const isAdminOrIT = user.role === "admin" || user.role === "it";
   if (conv.userId !== user.id && !isAdminOrIT) redirect("/me");
 
+  // For admins/IT deleting a conversation, prefer redirecting to the admin
+  // conversations list over the generic "/me" fallback used for regular users.
+  const deleteRedirectHref = isAdminOrIT && backHref === "/me" ? "/admin/conversations" : backHref;
+
   const msgs = await db
     .select()
     .from(messages)
@@ -86,13 +91,17 @@ export default async function ConversationPage({
             <h1 className="t-heading font-bold">{bot?.title ?? conv.title ?? "Разговор"}</h1>
             <p className="t-small text-muted-foreground">{formatTime(conv.startedAt)}</p>
           </div>
-          <Badge className={cn(
-            "ml-auto",
-            conv.status === "completed" ? "bg-green-100 text-green-700" :
-            conv.status === "active" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
-          )}>
-            {conv.status === "completed" ? "Завършена" : conv.status === "active" ? "Активна" : "Изоставена"}
-          </Badge>
+          <div className="ml-auto flex items-center gap-2">
+            <Badge className={cn(
+              conv.status === "completed" ? "bg-green-100 text-green-700" :
+              conv.status === "active" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
+            )}>
+              {conv.status === "completed" ? "Завършена" : conv.status === "active" ? "Активна" : "Изоставена"}
+            </Badge>
+            {isAdminOrIT && (
+              <DeleteConversationButton conversationId={id} backHref={deleteRedirectHref} />
+            )}
+          </div>
         </div>
 
         {/* Transcript — shown FIRST */}

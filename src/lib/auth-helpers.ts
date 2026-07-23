@@ -1,12 +1,39 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+import db from "@/db";
+import { users } from "@/db/schema";
 
 export type AppRole = "user" | "admin" | "it";
 
-/** Returns current session user, or redirects to /login */
+/**
+ * Returns current session user, or redirects to /login.
+ *
+ * Also re-checks the `active` flag against the DB on every call. The JWT
+ * session strategy means a deactivated user's session cookie stays valid
+ * until it expires, so without this check they could keep using the app
+ * after being deactivated.
+ *
+ * Note: this calls `redirect()`, not Auth.js `signOut()` — Server Components
+ * cannot write cookies (only Server Actions / Route Handlers / Middleware
+ * can), so the session cookie itself isn't cleared here. That's an
+ * acceptable tradeoff: every protected page re-checks the DB and bounces
+ * the deactivated user back to /login regardless, so they can never reach
+ * app content. Cost: one extra DB read per protected page load — fine for
+ * an internal tool at this scale.
+ */
 export async function requireAuth() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  const dbUser = await db
+    .select({ active: users.active })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .then((r) => r[0]);
+
+  if (!dbUser || !dbUser.active) redirect("/login");
+
   return session.user;
 }
 

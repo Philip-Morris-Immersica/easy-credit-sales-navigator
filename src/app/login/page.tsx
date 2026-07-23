@@ -60,6 +60,9 @@ function LoginForm() {
             "Този акаунт е създаден чрез Google или Microsoft. Влезте със съответния бутон по-долу."
           );
           break;
+        case "deactivated":
+          setError("Този акаунт е деактивиран. Свържете се с администратор.");
+          break;
       }
       return;
     }

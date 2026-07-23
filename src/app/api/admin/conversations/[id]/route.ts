@@ -8,8 +8,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "it") {
-    return Response.json({ error: "Forbidden — only IT can delete conversations" }, { status: 403 });
+  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "it")) {
+    return Response.json({ error: "Forbidden — admin or IT access required" }, { status: 403 });
   }
 
   const { id } = await params;

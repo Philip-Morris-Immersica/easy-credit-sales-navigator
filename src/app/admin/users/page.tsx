@@ -20,6 +20,7 @@ export default async function AdminUsersPage() {
       name: users.name,
       email: users.email,
       role: users.role,
+      active: users.active,
       createdAt: users.createdAt,
       lastActiveAt: users.lastActiveAt,
       convCount: count(conversations.id),
@@ -53,13 +54,18 @@ export default async function AdminUsersPage() {
                   <div className="t-small text-muted-foreground">{row.email}</div>
                 </td>
                 <td className="px-4 py-3">
-                  <Badge className={cn(
-                    row.role === "it" ? "bg-purple-100 text-purple-700" :
-                    row.role === "admin" ? "bg-blue-100 text-blue-700" :
-                    "bg-muted text-muted-foreground"
-                  )}>
-                    {row.role}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge className={cn(
+                      row.role === "it" ? "bg-purple-100 text-purple-700" :
+                      row.role === "admin" ? "bg-blue-100 text-blue-700" :
+                      "bg-muted text-muted-foreground"
+                    )}>
+                      {row.role}
+                    </Badge>
+                    {!row.active && (
+                      <Badge className="bg-red-100 text-red-700">Деактивиран</Badge>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3 font-medium">{row.convCount}</td>
                 <td className="px-4 py-3 t-small text-muted-foreground">{formatDate(row.lastActiveAt)}</td>

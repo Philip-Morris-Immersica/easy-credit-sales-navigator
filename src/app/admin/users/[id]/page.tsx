@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
+import { UserActiveToggle } from "@/components/admin/UserActiveToggle";
 
 function formatDate(d: Date | null) {
   if (!d) return "—";
@@ -22,7 +23,7 @@ export default async function AdminUserDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
   const { id } = await params;
 
   const user = await db
@@ -88,14 +89,21 @@ export default async function AdminUserDetailPage({
           <h1 className="t-heading font-bold">{user.name ?? "—"}</h1>
           <p className="t-body text-muted-foreground">{user.email}</p>
         </div>
-        <Badge className={cn(
-          "ml-auto",
-          user.role === "it" ? "bg-purple-100 text-purple-700" :
-          user.role === "admin" ? "bg-blue-100 text-blue-700" :
-          "bg-muted text-muted-foreground"
-        )}>
-          {user.role}
-        </Badge>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge className={cn(
+            user.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+          )}>
+            {user.active ? "Активен" : "Деактивиран"}
+          </Badge>
+          <Badge className={cn(
+            user.role === "it" ? "bg-purple-100 text-purple-700" :
+            user.role === "admin" ? "bg-blue-100 text-blue-700" :
+            "bg-muted text-muted-foreground"
+          )}>
+            {user.role}
+          </Badge>
+          <UserActiveToggle userId={user.id} active={user.active} isSelf={user.id === viewer.id} />
+        </div>
       </div>
 
       {/* Summary stats */}
