@@ -2,6 +2,7 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { eq, asc } from "drizzle-orm";
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import db from "@/db";
 import { conversations, messages, bots, analyses } from "@/db/schema";
 import { computeCost } from "@/lib/cost";
@@ -37,11 +38,19 @@ const TRAINING_FRAMEWORK = `
 - Уважавай времето на клиента
 - Не натискай — води разговора естествено към следваща стъпка
 - Всеки разговор трябва да завърши с ясна следваща стъпка
+
+ОБРЪЩЕНИЕ „ВИЕ" / „ТИ" (задължително отчитай при оценката):
+- При НОВ или непознат клиент консултантът трябва да се обръща на „Вие", докато клиентът сам не предложи или изрично разреши преминаване на „ти".
+- При лоялни/познати клиенти, или когато самият клиент премине на „ти", използването на „ти" е приемливо.
+- Ако консултантът премине на „ти" с нов/непознат клиент, без клиентът да е дал позволение, това е пропуск: отбележи го изрично в „improvements" и го отрази в оценката по критерий „Установяване на контакт".
 `;
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isUserActive(session.user.id))) {
+    return Response.json({ error: "Акаунтът е деактивиран." }, { status: 403 });
+  }
 
   const { conversationId } = await req.json();
 

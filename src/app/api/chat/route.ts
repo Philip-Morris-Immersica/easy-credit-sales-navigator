@@ -2,6 +2,7 @@ import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { eq, desc, and, or, ne } from "drizzle-orm";
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import db from "@/db";
 import {
   bots,
@@ -19,6 +20,9 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await isUserActive(session.user.id))) {
+    return Response.json({ error: "Акаунтът е деактивиран." }, { status: 403 });
   }
 
   const { conversationId, botKey, message, newConversation } = await req.json();

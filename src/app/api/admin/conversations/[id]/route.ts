@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import db from "@/db";
-import { conversations, messages, analyses } from "@/db/schema";
+import { conversations, messages, analyses, auditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function DELETE(
@@ -15,7 +15,12 @@ export async function DELETE(
   const { id } = await params;
 
   const conv = await db
-    .select({ id: conversations.id })
+    .select({
+      id: conversations.id,
+      userId: conversations.userId,
+      title: conversations.title,
+      kind: conversations.kind,
+    })
     .from(conversations)
     .where(eq(conversations.id, id))
     .then((r) => r[0]);
@@ -24,6 +29,14 @@ export async function DELETE(
 
   // Cascade deletes messages and analyses due to FK onDelete: cascade
   await db.delete(conversations).where(eq(conversations.id, id));
+
+  // Audit trail — deletion is irreversible, so record who did it and on what.
+  await db.insert(auditLog).values({
+    actorId: session.user.id,
+    action: "conversation.delete",
+    target: id,
+    meta: { userId: conv.userId, title: conv.title, kind: conv.kind },
+  });
 
   return Response.json({ success: true });
 }

@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import db from "@/db";
 import { conversations, messages, analyses } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
@@ -9,6 +10,9 @@ export async function GET(
 ) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isUserActive(session.user.id))) {
+    return Response.json({ error: "Акаунтът е деактивиран." }, { status: 403 });
+  }
 
   const { id } = await params;
   const role = session.user.role;
@@ -46,6 +50,9 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isUserActive(session.user.id))) {
+    return Response.json({ error: "Акаунтът е деактивиран." }, { status: 403 });
+  }
 
   const { id } = await params;
   const { status } = await req.json();

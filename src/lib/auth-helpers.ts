@@ -51,6 +51,21 @@ export async function requireIT() {
   return user;
 }
 
+/**
+ * DB-level active check for API route handlers. Route handlers return JSON (not
+ * redirects), so they can't use `requireAuth()`. Since the session is a 30-day
+ * JWT, a user deactivated mid-session keeps a valid token — every sensitive API
+ * route must re-check `active` against the DB before acting.
+ */
+export async function isUserActive(userId: string): Promise<boolean> {
+  const row = await db
+    .select({ active: users.active })
+    .from(users)
+    .where(eq(users.id, userId))
+    .then((r) => r[0]);
+  return !!row?.active;
+}
+
 export function isAdmin(role: string) {
   return role === "admin" || role === "it";
 }

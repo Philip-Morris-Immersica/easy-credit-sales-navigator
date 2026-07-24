@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import db from "@/db";
 import { conversations, bots, analyses } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
@@ -6,6 +7,9 @@ import { eq, desc, and } from "drizzle-orm";
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isUserActive(session.user.id))) {
+    return Response.json({ error: "Акаунтът е деактивиран." }, { status: 403 });
+  }
 
   const url = new URL(req.url);
   const userId = url.searchParams.get("userId");
