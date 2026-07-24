@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Send, X, Loader2, BarChart2, RefreshCw, ChevronLeft, User, Mic, MicOff } from "lucide-react";
 import Image from "next/image";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -311,6 +312,23 @@ export function ChatWindow({
         }),
       });
 
+      // Account deactivated mid-session: show a clear message and sign out,
+      // rather than the generic "connection error".
+      if (res.status === 403) {
+        const err = await res.json().catch(() => ({}));
+        const msg =
+          (err as { error?: string }).error || "Акаунтът е деактивиран.";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: `${msg} Ще бъдете отписан(а)…` }
+              : m
+          )
+        );
+        setTimeout(() => signOut({ callbackUrl: "/login?deactivated=1" }), 2500);
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -612,9 +630,20 @@ export function ChatWindow({
                     : "bg-muted text-foreground rounded-bl-sm"
                 )}
               >
-                {msg.content || (loading && msg.role === "assistant" ? (
+                {msg.content ? (
+                  // Robi (consultant) formats with Markdown; render it so
+                  // headings, **bold** and bullet lists show properly instead
+                  // of one raw block of text. Client roleplay stays plain.
+                  msg.role === "assistant" && kind === "consultant" ? (
+                    <div className="space-y-2 [&_p]:m-0 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5 [&_strong]:font-semibold [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.content
+                  )
+                ) : loading && msg.role === "assistant" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null)}
+                ) : null}
               </div>
             </div>
           ))}

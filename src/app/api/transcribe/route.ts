@@ -15,6 +15,28 @@ const ALLOWED_MODELS = new Set([
   "whisper-1",
 ]);
 
+// Phrases the transcription models tend to hallucinate on silence/faint audio.
+// If the whole result is just one of these (or the biasing prompt echoed back),
+// we return an empty string so nothing lands in the input box.
+const HALLUCINATION_PATTERNS = [
+  "разговор на български език между кредитен консултант и клиент",
+  "субтитри",
+  "благодаря, че гледахте",
+  "продължение следва",
+  "amara.org",
+];
+
+function sanitizeTranscript(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+  const lower = text.toLowerCase();
+  // Drop results that are essentially just the biasing prompt or a known
+  // filler hallucination, and very short punctuation-only fragments.
+  if (HALLUCINATION_PATTERNS.some((p) => lower.includes(p))) return "";
+  if (!/[а-яa-z0-9]/i.test(text)) return "";
+  return text;
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
@@ -40,17 +62,16 @@ export async function POST(req: Request) {
 
   const audio = new Uint8Array(await file.arrayBuffer());
 
-  // Domain vocabulary biases the model toward EasyCredit-specific terms and
-  // common Bulgarian sales/credit jargon, improving accuracy on words that
-  // generic transcription tends to mishear.
+  // A short, natural-sentence prompt biases the model toward Bulgarian sales
+  // context WITHOUT feeding it a comma-separated vocabulary list. A keyword
+  // list gets echoed back verbatim when the user is silent or the audio is
+  // faint (a well-known Whisper hallucination), so we deliberately avoid it.
   const providerOptions = {
     openai: {
       language: "bg",
+      temperature: 0,
       prompt:
-        "Транскрипция на български език от търговски разговор за потребителски кредити в EasyCredit (Изи Кредит). " +
-        "Възможни термини: кредит, потребителски кредит, рефинансиране, предварително одобрен, лихва, ГПР, " +
-        "вноска, месечна вноска, погасителен план, срок, главница, такса, застраховка, разсрочване, " +
-        "предсрочно погасяване, консултант, клиент, оферта, кредитен лимит, одобрение, евро.",
+        "Разговор на български език между кредитен консултант и клиент в Изи Кредит.",
     },
   };
 
@@ -66,7 +87,7 @@ export async function POST(req: Request) {
         audio,
         providerOptions,
       });
-      return Response.json({ text: text.trim() });
+      return Response.json({ text: sanitizeTranscript(text) });
     } catch (err) {
       console.error(`Transcription failed with model ${model}:`, err);
       lastErr = err;

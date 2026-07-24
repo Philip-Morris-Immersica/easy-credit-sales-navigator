@@ -26,9 +26,12 @@ function LoginForm() {
     microsoft: false,
   });
 
-  // Surface OAuth callback errors (Auth.js redirects here with ?error=...).
+  // Surface OAuth callback errors (Auth.js redirects here with ?error=...) and
+  // the deactivated-session redirect coming from the app.
   useEffect(() => {
-    if (params.get("error")) {
+    if (params.get("deactivated")) {
+      setError("Акаунтът Ви е деактивиран. Свържете се с администратор.");
+    } else if (params.get("error")) {
       setError("Входът чрез външен доставчик е неуспешен. Опитайте отново.");
     }
   }, [params]);

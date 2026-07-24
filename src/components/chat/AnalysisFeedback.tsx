@@ -111,26 +111,63 @@ function buildAnalysisHtml(analysis: AnalysisData, title: string): string {
 </html>`;
 }
 
-function downloadAnalysisHtml(analysis: AnalysisData, title: string, conversationId?: string) {
+/**
+ * Opens the analysis in a hidden iframe and triggers the browser's print
+ * dialog, where the user picks "Save as PDF". This keeps Cyrillic rendering
+ * pixel-perfect (native fonts) and needs no PDF library. The document title
+ * becomes the default PDF filename.
+ */
+function downloadAnalysisPdf(analysis: AnalysisData, title: string) {
   const html = buildAnalysisHtml(analysis, title);
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `анализ-${conversationId ?? "razgovor"}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    document.body.removeChild(iframe);
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  let printed = false;
+  const printAndCleanup = () => {
+    if (printed) return;
+    printed = true;
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } finally {
+      setTimeout(() => {
+        if (iframe.parentNode) document.body.removeChild(iframe);
+      }, 1000);
+    }
+  };
+
+  // Print once the iframe has laid out; the timeout is a fallback for browsers
+  // that don't fire `onload` for document.write content.
+  if (iframe.contentWindow) {
+    iframe.contentWindow.onload = printAndCleanup;
+  }
+  setTimeout(printAndCleanup, 400);
 }
 
 export function AnalysisFeedback({
   analysis,
-  conversationId,
   title = "Анализ на разговор",
 }: {
   analysis: AnalysisData;
-  /** Used to name the exported file, e.g. `анализ-<conversationId>.html`. */
+  /** Kept for call-site compatibility; no longer used for the export filename. */
   conversationId?: string;
-  /** Shown as the document title inside the exported HTML file. */
+  /** Shown as the document title inside the exported PDF (and its filename). */
   title?: string;
 }) {
   const score = analysis.overallScore ?? 0;
@@ -145,10 +182,10 @@ export function AnalysisFeedback({
           size="sm"
           variant="outline"
           className="gap-1.5"
-          onClick={() => downloadAnalysisHtml(analysis, title, conversationId)}
+          onClick={() => downloadAnalysisPdf(analysis, title)}
         >
           <Download className="h-3.5 w-3.5" />
-          Свали анализа
+          Свали като PDF
         </Button>
       </div>
 
