@@ -10,16 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { AnalysisFeedback } from "./AnalysisFeedback";
 import { getBotAvatar } from "@/lib/bot-avatars";
@@ -215,8 +205,6 @@ export function ChatWindow({
   // Transient hint shown when the (still-locked) Analyze button is clicked.
   const [analyzeHint, setAnalyzeHint] = useState<string | null>(null);
   const analyzeHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Confirmation before discarding an unfinished simulation via restart.
-  const [confirmRestartOpen, setConfirmRestartOpen] = useState(false);
 
   // Persist the conversation whenever it changes.
   useEffect(() => {
@@ -447,17 +435,6 @@ export function ChatWindow({
     handleEndSimulation();
   }
 
-  // Restart isn't locked (that felt clunky); instead we confirm before
-  // discarding an unfinished, not-yet-analysed simulation.
-  function handleRestartClick() {
-    const hasUserMessages = messages.some((m) => m.role === "user");
-    if (kind === "simulation" && !ended && hasUserMessages) {
-      setConfirmRestartOpen(true);
-      return;
-    }
-    restartConversation();
-  }
-
   if (showAnalysis && analysis) {
     return (
       <div className={cn("flex flex-col h-full bg-white rounded-2xl overflow-hidden", className)}>
@@ -520,7 +497,7 @@ export function ChatWindow({
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={handleRestartClick}
+              onClick={restartConversation}
               className="text-white hover:bg-white/20"
               title={kind === "simulation" ? "Започни симулацията наново" : "Започни разговора наново"}
               aria-label="Рестартирай разговора"
@@ -760,30 +737,6 @@ export function ChatWindow({
       {showPersona && persona && (
         <PersonaOverlay persona={persona} avatarSrc={avatarSrc} onClose={() => setShowPersona(false)} />
       )}
-
-      {/* Confirm before discarding an unfinished, not-yet-analysed simulation */}
-      <AlertDialog open={confirmRestartOpen} onOpenChange={setConfirmRestartOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Да започнем ли нова симулация?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Текущата симулация още не е анализирана. Ако започнеш нова сега, този
-              разговор няма да получи анализ.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Отказ</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirmRestartOpen(false);
-                restartConversation();
-              }}
-            >
-              Започни нова
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Video, Dumbbell, X, User } from "lucide-react";
+import { ChevronDown, Video, Dumbbell, X, User, AlertTriangle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -331,14 +331,22 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [simOpen, setSimOpen] = React.useState(false);
   const [botInfo, setBotInfo] = React.useState<{ key: string; title: string; welcomeMessage: string } | null>(null);
+  const [simPersona, setSimPersona] = React.useState<PersonaData | undefined>(undefined);
+  // Set when the user already has an unfinished simulation (#2.7) — blocks
+  // starting a *different* one until the current is finished or discarded.
+  const [blockInfo, setBlockInfo] = React.useState<{ title: string; botKey: string } | null>(null);
+  const [mounted, setMounted] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
 
-  const fetchAndOpenSim = async () => {
-    if (!block.botKey) return;
+  React.useEffect(() => setMounted(true), []);
+
+  const openSim = async (key: string, persona?: PersonaData) => {
     try {
-      const res = await fetch(`/api/bots/${block.botKey}`);
+      const res = await fetch(`/api/bots/${key}`);
       if (res.ok) {
         const data = await res.json();
         setBotInfo(data);
+        setSimPersona(persona);
         setSimOpen(true);
       } else {
         alert("Ботът не е намерен. Проверете конфигурацията.");
@@ -348,12 +356,48 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
     }
   };
 
-  const handleTrain = () => {
+  const proceedOpen = () => {
     if (!block.botKey) return;
-    if (block.persona) {
-      setPreviewOpen(true);
-    } else {
-      fetchAndOpenSim();
+    if (block.persona) setPreviewOpen(true);
+    else openSim(block.botKey, undefined);
+  };
+
+  const handleTrain = async () => {
+    if (!block.botKey) return;
+    // Enforce "one simulation at a time": if a *different* simulation is still
+    // unfinished, ask the user to continue or discard it first.
+    try {
+      const res = await fetch("/api/simulations/active");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.active?.botKey && data.active.botKey !== block.botKey) {
+          setBlockInfo({ title: data.active.title, botKey: data.active.botKey });
+          return;
+        }
+      }
+    } catch {
+      // If the check fails, fall through and allow training rather than block.
+    }
+    proceedOpen();
+  };
+
+  const continueActive = async () => {
+    if (!blockInfo) return;
+    const key = blockInfo.botKey;
+    setBlockInfo(null);
+    await openSim(key, undefined);
+  };
+
+  const discardAndStart = async () => {
+    setBusy(true);
+    try {
+      await fetch("/api/simulations/active", { method: "DELETE" });
+    } catch {
+      /* ignore — proceed regardless */
+    } finally {
+      setBusy(false);
+      setBlockInfo(null);
+      proceedOpen();
     }
   };
 
@@ -401,7 +445,7 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
           botKey={block.botKey}
           onTrain={() => {
             setPreviewOpen(false);
-            fetchAndOpenSim();
+            if (block.botKey) openSim(block.botKey, block.persona);
           }}
           onClose={() => setPreviewOpen(false)}
         />
@@ -410,9 +454,44 @@ function ActionsRenderer({ block }: { block: ActionsBlock }) {
       {simOpen && botInfo && (
         <SimulationModal
           bot={botInfo}
-          persona={block.persona}
-          onClose={() => { setSimOpen(false); setBotInfo(null); }}
+          persona={simPersona}
+          onClose={() => { setSimOpen(false); setBotInfo(null); setSimPersona(undefined); }}
         />
+      )}
+
+      {mounted && blockInfo && createPortal(
+        <div
+          className="fixed inset-0 z-[195] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget && !busy) setBlockInfo(null); }}
+        >
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2 text-primary">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <h3 className="font-semibold text-base">Имаш незавършена симулация</h3>
+            </div>
+            <p className="t-body text-foreground/80 leading-snug">
+              Първо довърши „{blockInfo.title}“ или я откажи, преди да започнеш нова.
+              Можеш да я разгледаш и анализираш и по-късно от профила си.
+            </p>
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setBlockInfo(null)} disabled={busy}>
+                Отказ
+              </Button>
+              <Button variant="outline" onClick={discardAndStart} disabled={busy}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Откажи я и започни нова
+              </Button>
+              <Button
+                onClick={continueActive}
+                disabled={busy}
+                className="bg-primary text-white hover:bg-primary/80"
+              >
+                Продължи я
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );
