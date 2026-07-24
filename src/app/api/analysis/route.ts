@@ -17,22 +17,27 @@ export async function POST(req: Request) {
 
   const { conversationId } = await req.json();
 
-  // Ownership check — a user may only analyse their own conversations.
+  // Ownership check — a user may analyse their own conversations; admins/IT may
+  // analyse anyone's (so HR/coaches can produce feedback on demand).
   const conv = await db
-    .select({ userId: conversations.userId })
+    .select({ userId: conversations.userId, status: conversations.status })
     .from(conversations)
     .where(eq(conversations.id, conversationId))
     .then((r) => r[0]);
 
   if (!conv) return Response.json({ error: "Not found" }, { status: 404 });
-  if (conv.userId !== session.user.id) {
+  const isAdminOrIT = session.user.role === "admin" || session.user.role === "it";
+  if (conv.userId !== session.user.id && !isAdminOrIT) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Server-side gate (#2.6): don't let the min-turns requirement be bypassed by
   // calling the API directly. The threshold is enforced inside the helper.
+  // An abandoned session was never explicitly finished, so flag it as
+  // incomplete to avoid penalising stages the conversation never reached.
   const result = await generateAnalysisForConversation(conversationId, {
     minUserTurns: MIN_USER_TURNS_FOR_ANALYSIS,
+    incomplete: conv.status === "abandoned",
   });
 
   if (!result.ok) {

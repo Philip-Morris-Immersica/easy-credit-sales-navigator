@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { AnalysisFeedback } from "@/components/chat/AnalysisFeedback";
 import { DeleteConversationButton } from "@/components/admin/DeleteConversationButton";
+import { GenerateAnalysisButton } from "@/components/admin/GenerateAnalysisButton";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 
@@ -147,7 +148,7 @@ export default async function ConversationPage({
         </div>
 
         {/* Analysis — shown AFTER transcript */}
-        {analysis && (
+        {analysis ? (
           <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
             <h2 className="t-subheading font-semibold">Анализ</h2>
             <AnalysisFeedback
@@ -162,7 +163,17 @@ export default async function ConversationPage({
               title={`Анализ — ${bot?.title ?? conv.title ?? "Разговор"}`}
             />
           </div>
-        )}
+        ) : conv.kind === "simulation" ? (
+          <div className="bg-white rounded-2xl border border-border p-6 space-y-3">
+            <h2 className="t-subheading font-semibold">Анализ</h2>
+            <p className="t-small text-muted-foreground">
+              Този разговор още няма анализ. Можеш да го генерираш ръчно
+              {" "}(нужни са поне 6 реплики от консултанта). Ако разговорът е
+              останал незавършен, анализът ще го отбележи.
+            </p>
+            <GenerateAnalysisButton conversationId={id} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
