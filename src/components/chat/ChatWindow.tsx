@@ -9,6 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { AnalysisFeedback } from "./AnalysisFeedback";
 import { getBotAvatar } from "@/lib/bot-avatars";
@@ -201,6 +211,11 @@ export function ChatWindow({
   // Set when the user hits "send" while voice capture is still running; the
   // actual send is deferred until the final transcription lands in `input`.
   const pendingSendRef = useRef(false);
+  // Transient hint shown when the (still-locked) Analyze button is clicked.
+  const [analyzeHint, setAnalyzeHint] = useState<string | null>(null);
+  const analyzeHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Confirmation before discarding an unfinished simulation via restart.
+  const [confirmRestartOpen, setConfirmRestartOpen] = useState(false);
 
   // Persist the conversation whenever it changes.
   useEffect(() => {
@@ -347,6 +362,13 @@ export function ChatWindow({
     }
   }, [listening, voiceProcessing, input, sendMessage]);
 
+  useEffect(
+    () => () => {
+      if (analyzeHintTimer.current) clearTimeout(analyzeHintTimer.current);
+    },
+    []
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -383,6 +405,40 @@ export function ChatWindow({
       setAnalysisLoading(false);
     }
   };
+
+  function showAnalyzeHint(msg: string) {
+    setAnalyzeHint(msg);
+    if (analyzeHintTimer.current) clearTimeout(analyzeHintTimer.current);
+    analyzeHintTimer.current = setTimeout(() => setAnalyzeHint(null), 4000);
+  }
+
+  // The Analyze button stays clickable even while locked, so a click before the
+  // minimum number of replies shows a small hint instead of doing nothing.
+  function handleAnalyzeClick() {
+    if (analysisLoading) return;
+    if (!conversationId) {
+      showAnalyzeHint("Изпрати поне едно съобщение, за да анализираш.");
+      return;
+    }
+    if (!canAnalyze) {
+      showAnalyzeHint(
+        `Първо довърши симулацията — трябват поне ${MIN_USER_TURNS_FOR_ANALYSIS} реплики (остават още ${turnsRemaining}).`
+      );
+      return;
+    }
+    handleEndSimulation();
+  }
+
+  // Restart isn't locked (that felt clunky); instead we confirm before
+  // discarding an unfinished, not-yet-analysed simulation.
+  function handleRestartClick() {
+    const hasUserMessages = messages.some((m) => m.role === "user");
+    if (kind === "simulation" && !ended && hasUserMessages) {
+      setConfirmRestartOpen(true);
+      return;
+    }
+    restartConversation();
+  }
 
   if (showAnalysis && analysis) {
     return (
@@ -446,7 +502,7 @@ export function ChatWindow({
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={restartConversation}
+              onClick={handleRestartClick}
               className="text-white hover:bg-white/20"
               title={kind === "simulation" ? "Започни симулацията наново" : "Започни разговора наново"}
               aria-label="Рестартирай разговора"
@@ -477,27 +533,38 @@ export function ChatWindow({
               </Button>
             )}
             {!ended && (
-              <Button
-                size="sm"
-                onClick={handleEndSimulation}
-                disabled={analysisLoading || !conversationId || !canAnalyze}
-                style={{
-                  backgroundColor: "#ffffff",
-                  color: conversationId && canAnalyze ? "#1a2530" : "#9baab3",
-                  boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
-                }}
-                className="flex-1 sm:flex-none justify-center font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
-                title={
-                  !conversationId
-                    ? "Изпрати поне едно съобщение, за да анализираш"
-                    : !canAnalyze
-                      ? `Проведи поне ${MIN_USER_TURNS_FOR_ANALYSIS} реплики, за да анализираш (остават още ${turnsRemaining})`
-                      : "Анализирай разговора"
-                }
-              >
-                {analysisLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
-                Анализирай разговора
-              </Button>
+              <div className="relative flex-1 sm:flex-none">
+                <Button
+                  size="sm"
+                  onClick={handleAnalyzeClick}
+                  disabled={analysisLoading}
+                  aria-disabled={!conversationId || !canAnalyze}
+                  style={{
+                    backgroundColor: "#ffffff",
+                    color: conversationId && canAnalyze ? "#1a2530" : "#9baab3",
+                    boxShadow: "0 2px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
+                  }}
+                  className="w-full sm:w-auto justify-center font-semibold text-xs gap-1.5 px-3 border border-slate-200 hover:bg-slate-50"
+                  title={
+                    !conversationId
+                      ? "Изпрати поне едно съобщение, за да анализираш"
+                      : !canAnalyze
+                        ? `Проведи поне ${MIN_USER_TURNS_FOR_ANALYSIS} реплики, за да анализираш (остават още ${turnsRemaining})`
+                        : "Анализирай разговора"
+                  }
+                >
+                  {analysisLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
+                  Анализирай разговора
+                </Button>
+                {analyzeHint && (
+                  <div
+                    role="status"
+                    className="absolute left-0 top-full mt-1.5 z-30 w-max max-w-[260px] rounded-lg bg-slate-900 text-white text-[0.7rem] leading-snug px-3 py-2 shadow-lg"
+                  >
+                    {analyzeHint}
+                  </div>
+                )}
+              </div>
             )}
             {analysis && !ended && (
               <Button
@@ -594,7 +661,6 @@ export function ChatWindow({
                   voiceSupported && "pr-10"
                 )}
                 rows={1}
-                disabled={loading}
                 readOnly={listening || voiceProcessing}
               />
               {voiceSupported && (
@@ -665,6 +731,30 @@ export function ChatWindow({
       {showPersona && persona && (
         <PersonaOverlay persona={persona} avatarSrc={avatarSrc} onClose={() => setShowPersona(false)} />
       )}
+
+      {/* Confirm before discarding an unfinished, not-yet-analysed simulation */}
+      <AlertDialog open={confirmRestartOpen} onOpenChange={setConfirmRestartOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Да започнем ли нова симулация?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Текущата симулация още не е анализирана. Ако започнеш нова сега, този
+              разговор няма да получи анализ.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отказ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmRestartOpen(false);
+                restartConversation();
+              }}
+            >
+              Започни нова
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
