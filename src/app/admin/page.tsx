@@ -57,9 +57,12 @@ async function getTopUsers() {
       and(eq(conversations.userId, users.id), gte(conversations.startedAt, thirtyDaysAgo))
     )
     .groupBy(users.id, users.name, users.email)
-    .orderBy(count(conversations.id))
+    // Must sort DESC to pick the *most* active users; the previous ASC sort
+    // grabbed the 5 least-active (mostly zero) before the JS filter, leaving
+    // only a stray user in the list.
+    .orderBy(desc(count(conversations.id)))
     .limit(5);
-  return rows.sort((a, b) => b.count - a.count).filter((r) => r.count > 0);
+  return rows.filter((r) => r.count > 0);
 }
 
 async function getTopSimulations() {

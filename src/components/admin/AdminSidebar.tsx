@@ -78,7 +78,18 @@ export function AdminSidebar({ role }: { role: string }) {
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              {item.label}
+              <span>{item.label}</span>
+              {item.itOnly && (
+                <span
+                  className={cn(
+                    "ml-auto text-[0.65rem] font-semibold leading-none px-1.5 py-0.5 rounded",
+                    isActive ? "bg-white/20 text-white" : "bg-blue-50 text-blue-600"
+                  )}
+                  title="Достъпно само за ИТ роля"
+                >
+                  ИТ
+                </span>
+              )}
             </Link>
           );
         })}

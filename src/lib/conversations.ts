@@ -8,13 +8,42 @@ import { generateAnalysisForConversation } from "@/lib/analysis";
 export const STALE_SIMULATION_DAYS = 7;
 
 /**
- * Cleans up the user's stale, still-"active" simulation conversations (#2.7):
- * - Sessions with enough consultant turns are auto-analysed (marked
- *   "completed") so the trainee still gets feedback; the analysis is told the
- *   conversation was left unfinished so it doesn't penalise unreached stages.
- * - Shorter sessions are simply marked "abandoned".
- *
- * Runs lazily when the user opens /me. Stale = idle for STALE_SIMULATION_DAYS,
+ * Resolves a single stale "active" simulation (#2.7):
+ * - Enough consultant turns → auto-analyse (marked "completed") so the trainee
+ *   still gets feedback; the analysis is told the conversation was unfinished
+ *   so it doesn't penalise unreached stages. (Only when `analyse` is true.)
+ * - Otherwise (or on analysis failure) → simply marked "abandoned".
+ */
+async function resolveStaleConversation(
+  id: string,
+  analyse: boolean
+): Promise<"analysed" | "abandoned"> {
+  if (analyse) {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(eq(messages.conversationId, id), eq(messages.role, "user")));
+    const userTurns = row?.count ?? 0;
+
+    if (userTurns >= MIN_USER_TURNS_FOR_ANALYSIS) {
+      try {
+        await generateAnalysisForConversation(id, { incomplete: true });
+        return "analysed";
+      } catch {
+        // fall through to abandon so it doesn't stay stuck "active"
+      }
+    }
+  }
+
+  await db
+    .update(conversations)
+    .set({ status: "abandoned" })
+    .where(eq(conversations.id, id));
+  return "abandoned";
+}
+
+/**
+ * Cleans up ONE user's stale simulations. Runs lazily when the user opens /me,
  * so in practice this touches zero or very few conversations per visit.
  */
 export async function abandonStaleSimulations(userId: string): Promise<void> {
@@ -34,31 +63,46 @@ export async function abandonStaleSimulations(userId: string): Promise<void> {
       )
     );
 
-  if (stale.length === 0) return;
-
   for (const s of stale) {
-    const [row] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(messages)
-      .where(and(eq(messages.conversationId, s.id), eq(messages.role, "user")));
-    const userTurns = row?.count ?? 0;
-
-    if (userTurns >= MIN_USER_TURNS_FOR_ANALYSIS) {
-      // Long enough to be worth analysing — generate feedback and mark completed.
-      try {
-        await generateAnalysisForConversation(s.id, { incomplete: true });
-      } catch {
-        // If the LLM call fails, don't leave it stuck "active".
-        await db
-          .update(conversations)
-          .set({ status: "abandoned" })
-          .where(eq(conversations.id, s.id));
-      }
-    } else {
-      await db
-        .update(conversations)
-        .set({ status: "abandoned" })
-        .where(eq(conversations.id, s.id));
-    }
+    await resolveStaleConversation(s.id, true);
   }
+}
+
+/**
+ * Global sweep across ALL users — the per-user lazy cleanup only fires when
+ * that specific user opens /me, so sessions of users who never return would
+ * otherwise linger as "active" forever. Meant to be run on a schedule (Vercel
+ * Cron) and can also be invoked as a one-off maintenance script.
+ *
+ * @param analyse when true, long unfinished sessions are auto-analysed before
+ *   closing; when false they're just marked "abandoned" (cheap, no LLM cost —
+ *   useful for clearing an old backlog).
+ */
+export async function sweepStaleSimulations(
+  analyse = true
+): Promise<{ total: number; analysed: number; abandoned: number }> {
+  const staleBefore = new Date(
+    Date.now() - STALE_SIMULATION_DAYS * 24 * 60 * 60 * 1000
+  );
+
+  const stale = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.kind, "simulation"),
+        eq(conversations.status, "active"),
+        lt(conversations.lastActivityAt, staleBefore)
+      )
+    );
+
+  let analysed = 0;
+  let abandoned = 0;
+  for (const s of stale) {
+    const result = await resolveStaleConversation(s.id, analyse);
+    if (result === "analysed") analysed++;
+    else abandoned++;
+  }
+
+  return { total: stale.length, analysed, abandoned };
 }

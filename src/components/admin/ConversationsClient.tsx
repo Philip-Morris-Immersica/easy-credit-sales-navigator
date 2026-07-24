@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 
 function formatDate(d: Date | string) {
   return new Date(d).toLocaleString("bg", {
@@ -40,10 +40,64 @@ interface Props {
   };
 }
 
+type SortKey =
+  | "userName"
+  | "botTitle"
+  | "status"
+  | "msgCount"
+  | "startedAt"
+  | "lastActivityAt"
+  | "overallScore";
+
+function sortValue(row: ConversationRow, key: SortKey): string | number {
+  switch (key) {
+    case "userName":
+      return (row.userName ?? row.userEmail ?? "").toLowerCase();
+    case "botTitle":
+      return (row.botTitle ?? "").toLowerCase();
+    case "status":
+      return row.status;
+    case "msgCount":
+      return row.msgCount;
+    case "startedAt":
+      return new Date(row.startedAt).getTime();
+    case "lastActivityAt":
+      return new Date(row.lastActivityAt).getTime();
+    case "overallScore":
+      return row.overallScore ?? -1;
+  }
+}
+
 export function ConversationsClient({ rows: initialRows, canDelete, stats }: Props) {
   const [rows, setRows] = useState(initialRows);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
+    key: "lastActivityAt",
+    dir: "desc",
+  });
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: key === "userName" || key === "botTitle" ? "asc" : "desc" }
+    );
+  }
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    const { key, dir } = sort;
+    arr.sort((a, b) => {
+      const av = sortValue(a, key);
+      const bv = sortValue(b, key);
+      let cmp: number;
+      if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+      else cmp = String(av).localeCompare(String(bv), "bg");
+      return dir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, sort]);
 
   async function handleDelete(id: string) {
     setDeletingId(id);
@@ -88,17 +142,44 @@ export function ConversationsClient({ rows: initialRows, canDelete, stats }: Pro
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/40">
             <tr>
-              {[
-                "Потребител", "Бот", "Статус", "Реплики",
-                "Стартиран", "Последна активност", "Оценка", "Преглед",
-                ...(canDelete ? [""] : []),
-              ].map((h, i) => (
-                <th key={i} className="text-left px-4 py-3 t-small font-semibold text-muted-foreground">{h}</th>
+              {([
+                { label: "Потребител", key: "userName" },
+                { label: "Бот", key: "botTitle" },
+                { label: "Статус", key: "status" },
+                { label: "Реплики", key: "msgCount" },
+                { label: "Стартиран", key: "startedAt" },
+                { label: "Последна активност", key: "lastActivityAt" },
+                { label: "Оценка", key: "overallScore" },
+                { label: "Преглед" },
+                ...(canDelete ? [{ label: "" }] : []),
+              ] as { label: string; key?: SortKey }[]).map((h, i) => (
+                <th key={i} className="text-left px-4 py-3 t-small font-semibold text-muted-foreground">
+                  {h.key ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(h.key!)}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      {h.label}
+                      {sort.key === h.key ? (
+                        sort.dir === "asc" ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        )
+                      ) : (
+                        <ChevronsUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    h.label
+                  )}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((row) => (
+            {sortedRows.map((row) => (
               <tr key={row.id} className="hover:bg-muted/20">
                 <td className="px-4 py-3">
                   <div className="font-medium">{row.userName ?? "—"}</div>
