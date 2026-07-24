@@ -1,6 +1,7 @@
 import db from "@/db";
 import { users, conversations, messages, bots, analyses } from "@/db/schema";
 import { eq, gte, lte, and, count, sum, gt, asc } from "drizzle-orm";
+import { zonedDayStart, zonedDayEnd } from "@/lib/date-range";
 
 export interface ReportOptions {
   from: string;
@@ -9,9 +10,9 @@ export interface ReportOptions {
 }
 
 export async function generateReportData(opts: ReportOptions) {
-  const fromDate = new Date(opts.from);
-  const toDate = new Date(opts.to);
-  toDate.setHours(23, 59, 59, 999);
+  // Interpret the picked days as Europe/Sofia calendar days (#A2.1).
+  const fromDate = zonedDayStart(opts.from);
+  const toDate = zonedDayEnd(opts.to);
   const anonymize = opts.includes.includes("anonymize");
 
   const result: Record<string, unknown> = {};

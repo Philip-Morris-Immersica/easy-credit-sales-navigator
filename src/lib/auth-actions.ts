@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { signIn, signOut } from "@/auth";
 import db from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
+import { normalizeName } from "@/lib/names";
 import { Resend } from "resend";
 
 export async function registerUser(email: string, password: string, name: string) {
@@ -22,9 +23,7 @@ export async function registerUser(email: string, password: string, name: string
   const itEmail = process.env.INITIAL_IT_EMAIL?.toLowerCase();
   const role = itEmail && email.toLowerCase() === itEmail ? "it" : "user";
 
-  // Normalize whitespace only — no heuristic re-capitalization, since that
-  // risks mangling legitimate names.
-  const cleanName = name?.trim().replace(/\s+/g, " ") || null;
+  const cleanName = normalizeName(name);
 
   await db.insert(users).values({
     email: email.toLowerCase(),

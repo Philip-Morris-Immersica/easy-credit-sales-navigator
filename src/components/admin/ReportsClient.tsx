@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateField } from "@/components/admin/DateField";
+import { todayIso, daysAgoIso, LAUNCH_ISO } from "@/lib/date-range";
 import { Loader2, Download, BarChart2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -61,10 +62,8 @@ const INCLUDES = [
 
 export function ReportsClient() {
   const [period, setPeriod] = useState<Period>("30d");
-  const [from, setFrom] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10);
-  });
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [from, setFrom] = useState(() => daysAgoIso(30));
+  const [to, setTo] = useState(() => todayIso());
   const [includes, setIncludes] = useState<Set<string>>(
     new Set(["summary", "activeUsers", "analyses"])
   );
@@ -82,14 +81,11 @@ export function ReportsClient() {
 
   function setPeriodPreset(p: Period) {
     setPeriod(p);
-    const now = new Date();
-    const fromDate = new Date();
-    if (p === "today") fromDate.setHours(0, 0, 0, 0);
-    else if (p === "7d") fromDate.setDate(now.getDate() - 7);
-    else if (p === "30d") fromDate.setDate(now.getDate() - 30);
-    else fromDate.setFullYear(2026, 0, 1);
-    setFrom(fromDate.toISOString().slice(0, 10));
-    setTo(now.toISOString().slice(0, 10));
+    if (p === "today") setFrom(todayIso());
+    else if (p === "7d") setFrom(daysAgoIso(7));
+    else if (p === "30d") setFrom(daysAgoIso(30));
+    else setFrom(LAUNCH_ISO);
+    setTo(todayIso());
   }
 
   async function generateReport() {

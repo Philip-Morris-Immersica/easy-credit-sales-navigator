@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { UserActiveToggle } from "@/components/admin/UserActiveToggle";
+import { UserNameEditor } from "@/components/admin/UserNameEditor";
 
 function formatDate(d: Date | null) {
   if (!d) return "—";
@@ -102,6 +103,7 @@ export default async function AdminUserDetailPage({
           )}>
             {user.role}
           </Badge>
+          <UserNameEditor userId={user.id} currentName={user.name} />
           <UserActiveToggle userId={user.id} active={user.active} isSelf={user.id === viewer.id} />
         </div>
       </div>

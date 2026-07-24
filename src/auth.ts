@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import db from "@/db";
 import { users, accounts, sessions, verificationTokens } from "@/db/schema";
+import { normalizeName } from "@/lib/names";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -119,7 +120,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await db.insert(users).values({
             id: user.id ?? crypto.randomUUID(),
             email: user.email,
-            name: user.name ?? null,
+            name: normalizeName(user.name),
             image: user.image ?? null,
             role: isIT ? "it" : "user",
           });

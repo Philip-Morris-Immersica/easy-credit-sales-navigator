@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import db from "@/db";
 import { messages, conversations, users } from "@/db/schema";
 import { eq, gte, lte, and, count, sum } from "drizzle-orm";
+import { zonedDayStart, zonedDayEnd, LAUNCH_ISO, todayIso } from "@/lib/date-range";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -13,9 +14,9 @@ export async function GET(req: Request) {
   const fromStr = searchParams.get("from");
   const toStr = searchParams.get("to");
 
-  const fromDate = fromStr ? new Date(fromStr) : new Date("2026-01-01");
-  const toDate = toStr ? new Date(toStr) : new Date();
-  toDate.setHours(23, 59, 59, 999);
+  // Interpret the picked days as Europe/Sofia calendar days (#A2.1).
+  const fromDate = zonedDayStart(fromStr ?? LAUNCH_ISO);
+  const toDate = zonedDayEnd(toStr ?? todayIso());
 
   // Total stats
   const [totals] = await db

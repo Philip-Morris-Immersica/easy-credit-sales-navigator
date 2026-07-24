@@ -4,6 +4,7 @@ import { analyses, conversations, users, bots } from "@/db/schema";
 import { eq, gte, lte, and, inArray } from "drizzle-orm";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { zonedDayStart, zonedDayEnd, LAUNCH_ISO, todayIso } from "@/lib/date-range";
 
 export const runtime = "nodejs";
 
@@ -20,9 +21,9 @@ export async function POST(req: Request) {
       userIds?: string[];
     };
 
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
-    toDate.setHours(23, 59, 59, 999);
+    // Interpret the picked days as Europe/Sofia calendar days (#A2.1).
+    const fromDate = zonedDayStart(from ?? LAUNCH_ISO);
+    const toDate = zonedDayEnd(to ?? todayIso());
 
     const rows = await db
       .select({

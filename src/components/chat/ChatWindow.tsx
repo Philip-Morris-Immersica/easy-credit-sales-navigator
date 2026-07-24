@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { AnalysisFeedback } from "./AnalysisFeedback";
 import { getBotAvatar } from "@/lib/bot-avatars";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { MIN_USER_TURNS_FOR_ANALYSIS } from "@/lib/analysis-config";
 import type { PersonaData } from "@/components/navigator/types";
 
 export interface ChatWindowProps {
@@ -187,9 +188,8 @@ export function ChatWindow({
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [ended, setEnded] = useState(persisted?.ended ?? false);
 
-  // Trainee must complete at least this many replies before the analysis
-  // is meaningful — otherwise the AI has too little material to work with.
-  const MIN_USER_TURNS_FOR_ANALYSIS = 6;
+  // Trainee must complete at least MIN_USER_TURNS_FOR_ANALYSIS replies before
+  // the analysis is meaningful — otherwise the AI has too little material.
   const userTurnCount = messages.filter((m) => m.role === "user").length;
   const turnsRemaining = Math.max(0, MIN_USER_TURNS_FOR_ANALYSIS - userTurnCount);
   // Already-ended conversations should never be blocked by the turn count
