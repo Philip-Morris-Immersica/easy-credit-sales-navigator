@@ -395,7 +395,7 @@ const callScenarios: NavNode = {
       title: "Предварително одобрен",
       icon: "BadgeCheck",
       layout: "text",
-      cardDescription: "Персонаж: Надежда Петрова Иванова, 53 г. Предварително одобрен."
+      cardDescription: "Персонаж: Надежда Петрова Иванова, 53 г. Предварително одобрен.",
       content: [
         { type: "collapsible", label: "1 и 2. Отваряне и Представяне", blocks: [
             { type: "dialogue", lines: [
@@ -593,7 +593,7 @@ const callScenarios: NavNode = {
       title: "За продукт Пенсионер",
       icon: "Armchair",
       layout: "text",
-      cardDescription: "Персонаж: Пламенка Георгиева Конова. Продукт „Пенсионер“."
+      cardDescription: "Персонаж: Пламенка Георгиева Конова. Продукт „Пенсионер“.",
       content: [
         { type: "collapsible", label: "1 и 2. Отваряне и Представяне", blocks: [
             { type: "dialogue", lines: [
