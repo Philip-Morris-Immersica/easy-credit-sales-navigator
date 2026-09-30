@@ -67,11 +67,25 @@ export default async function AdminTreePage() {
 
       <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
         <h2 className="t-subheading font-semibold">Съдържание на tree.ts</h2>
-        <p className="t-small text-muted-foreground">
-          Може да го прегледаш и редактираш директно. След редакция натисни „Запази файла“, а след това „Реиндексирай“,
-          за да влязат промените в бота. Предишното съдържание се пази при всяко запазване (последните 10).
-        </p>
-        <KBEditor />
+        {process.env.VERCEL ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 space-y-1">
+            <p className="font-semibold">Редакторът не работи на продукция</p>
+            <p>
+              Файлът е част от компилираното приложение, затова тук не може да се редактира. Променете{" "}
+              <code className="bg-amber-100 px-1 rounded">src/content/sales-navigator/tree.ts</code> локално, комитнете и
+              внедрете, след което натиснете „Преиндексирай“ по-горе.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="t-small text-muted-foreground">
+              Може да го прегледаш и редактираш директно (само при локална работа). След редакция натисни „Запази файла“,
+              а след това „Реиндексирай“ — приложението трябва да се презареди, за да чете новото съдържание.
+              Предишното съдържание се пази при всяко запазване (последните 10).
+            </p>
+            <KBEditor />
+          </>
+        )}
       </div>
     </div>
   );

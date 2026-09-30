@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     maxOutputTokens: bot.maxTokens,
     // Само Роби търси в базата знания; симулациите на клиенти нямат инструменти.
     ...(isConsultant
-      ? { tools: createKnowledgeTools(searchLog), stopWhen: stepCountIs(4) }
+      ? { tools: createKnowledgeTools(searchLog), stopWhen: stepCountIs(3) }
       : {}),
     onFinish: async ({ steps, totalUsage }) => {
       // Текстът, който потребителят е видял, е съединение на всички стъпки.
@@ -206,7 +206,7 @@ async function getRAGContext(query: string, userId: string, userRole: string) {
         .orderBy(
           sql`1 - (${cosineDistance(knowledgeChunks.embedding, embedding.embedding)}) DESC`
         )
-        .limit(6);
+        .limit(4);
 
       courseContent = chunks
         .map((c) => `### ${c.title ?? "Раздел"}\n${c.content}`)
@@ -228,7 +228,6 @@ async function getRAGContext(query: string, userId: string, userRole: string) {
 
   // User conversation history
   try {
-    const isAdminOrIT = userRole === "admin" || userRole === "it";
     const convQuery = db
       .select({
         id: conversations.id,
@@ -237,11 +236,8 @@ async function getRAGContext(query: string, userId: string, userRole: string) {
         status: conversations.status,
       })
       .from(conversations)
-      .where(
-        isAdminOrIT
-          ? undefined
-          : eq(conversations.userId, userId)
-      )
+      // Винаги само разговорите на самия потребител (и за admin/it — не чужди разговори).
+      .where(eq(conversations.userId, userId))
       .orderBy(desc(conversations.lastActivityAt))
       .limit(5);
 

@@ -144,6 +144,7 @@ export async function parseUploadedFile(
 
   let raw: string;
   if (lower.endsWith(".docx")) {
+    assertZipNotBomb(buffer);
     const mammoth = await import("mammoth");
     let converted: { value: string };
     try {
@@ -163,6 +164,33 @@ export async function parseUploadedFile(
     throw new KbError("Документът е твърде дълъг. Разделете го на няколко по-малки.");
   }
   return { text, meta };
+}
+
+const CONFLICT_MESSAGE = "Документът е променен междувременно от друг потребител. Презаредете страницата и опитайте отново.";
+const MAX_UNCOMPRESSED_BYTES = 40 * 1024 * 1024;
+
+/**
+ * .docx е zip архив. Размерът на качения файл (4 MB) не казва колко ще се разгърне —
+ * четем размерите от централната директория на архива, без да разархивираме нищо.
+ */
+function assertZipNotBomb(buffer: Buffer) {
+  const bad = () => new KbError("Файлът не изглежда като валиден .docx или е прекалено голям след разархивиране.");
+  let eocd = -1;
+  for (let i = buffer.length - 22; i >= Math.max(0, buffer.length - 22 - 65535); i--) {
+    if (buffer.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw bad();
+  const entries = buffer.readUInt16LE(eocd + 10);
+  let pos = buffer.readUInt32LE(eocd + 16);
+  let total = 0;
+  for (let n = 0; n < entries; n++) {
+    if (pos + 46 > buffer.length || buffer.readUInt32LE(pos) !== 0x02014b50) throw bad();
+    const size = buffer.readUInt32LE(pos + 24);
+    if (size === 0xffffffff) throw bad(); // ZIP64 — не се очаква в документ от Word
+    total += size;
+    if (total > MAX_UNCOMPRESSED_BYTES) throw bad();
+    pos += 46 + buffer.readUInt16LE(pos + 28) + buffer.readUInt16LE(pos + 30) + buffer.readUInt16LE(pos + 32);
+  }
 }
 
 // ─── Чънкване ─────────────────────────────────────────────────────────────────
@@ -303,17 +331,17 @@ export async function indexDocument(doc: Pick<KbDocument, "id" | "title" | "cate
 
 /** Заменя чънковете на документа. Чънковете на дървото (source='tree') никога не се докосват. */
 async function writeChunks(documentId: string, chunks: DocChunk[], embeddings: number[][]) {
+  // Един групов INSERT (една SQL заявка е атомарна): прекъсване не оставя половин индекс.
+  const rows = chunks.map((c, i) => ({
+    source: "document" as const,
+    documentId,
+    slugPath: `doc/${documentId}`,
+    title: c.title,
+    content: c.content,
+    embedding: embeddings[i],
+  }));
   await db.delete(knowledgeChunks).where(eq(knowledgeChunks.documentId, documentId));
-  for (let i = 0; i < chunks.length; i++) {
-    await db.insert(knowledgeChunks).values({
-      source: "document",
-      documentId,
-      slugPath: `doc/${documentId}`,
-      title: chunks[i].title,
-      content: chunks[i].content,
-      embedding: embeddings[i],
-    });
-  }
+  if (rows.length) await db.insert(knowledgeChunks).values(rows);
 }
 
 export async function removeDocumentChunks(documentId: string) {
@@ -407,7 +435,7 @@ export async function replaceDocument(
   const chunks = chunkDocument(next.title, next.category, next.meta, next.rawText);
   const embeddings = await embedValues(chunks.map((c) => `${c.title}\n${c.content}`));
 
-  await snapshotVersion(current, input.actorId, "replace");
+  // Оптимистично заключване: обновяваме само ако версията още е прочетената.
   const [doc] = await db
     .update(kbDocuments)
     .set({
@@ -418,8 +446,10 @@ export async function replaceDocument(
       status: "active",
       updatedAt: new Date(),
     })
-    .where(eq(kbDocuments.id, id))
+    .where(and(eq(kbDocuments.id, id), eq(kbDocuments.version, current.version)))
     .returning();
+  if (!doc) throw new KbError(CONFLICT_MESSAGE, 409);
+  await snapshotVersion(current, input.actorId, "replace");
 
   await writeChunks(id, chunks, embeddings);
   await audit(input.actorId, "kb.document.replace", id, { title: doc.title, version: doc.version, chunks: chunks.length });
@@ -430,11 +460,11 @@ export async function replaceDocument(
 export async function archiveDocument(id: string, actorId: string) {
   const doc = await getDocument(id);
   if (!doc) throw new KbError("Документът не е намерен.", 404);
+  await removeDocumentChunks(id); // първо махаме от индекса — при срив архивираният не остава търсим
   await db
     .update(kbDocuments)
     .set({ status: "archived", updatedAt: new Date() })
     .where(eq(kbDocuments.id, id));
-  await removeDocumentChunks(id);
   await audit(actorId, "kb.document.archive", id, { title: doc.title });
 }
 
@@ -471,8 +501,7 @@ export async function restoreDocumentVersion(id: string, versionId: string, acto
   const chunks = chunkDocument(target.title, target.category, (target.meta ?? null) as Record<string, string> | null, target.rawText);
   const embeddings = await embedValues(chunks.map((c) => `${c.title}\n${c.content}`));
 
-  await snapshotVersion(current, actorId, "restore");
-  await db
+  const updated = await db
     .update(kbDocuments)
     .set({
       title: old.title,
@@ -484,7 +513,10 @@ export async function restoreDocumentVersion(id: string, versionId: string, acto
       status: "active",
       updatedAt: new Date(),
     })
-    .where(eq(kbDocuments.id, id));
+    .where(and(eq(kbDocuments.id, id), eq(kbDocuments.version, current.version)))
+    .returning({ id: kbDocuments.id });
+  if (updated.length === 0) throw new KbError(CONFLICT_MESSAGE, 409);
+  await snapshotVersion(current, actorId, "restore");
   await writeChunks(id, chunks, embeddings);
   await audit(actorId, "kb.document.restore", id, { fromVersion: old.version, newVersion: current.version + 1 });
 }
@@ -516,7 +548,14 @@ export async function searchKnowledge(query: string, source: KnowledgeSource): P
   return db
     .select({ title: knowledgeChunks.title, content: knowledgeChunks.content, similarity })
     .from(knowledgeChunks)
-    .where(and(eq(knowledgeChunks.source, source), gt(similarity, threshold)))
+    .leftJoin(kbDocuments, eq(knowledgeChunks.documentId, kbDocuments.id))
+    .where(
+      and(
+        eq(knowledgeChunks.source, source),
+        gt(similarity, threshold),
+        source === "document" ? eq(kbDocuments.status, "active") : undefined
+      )
+    )
     .orderBy(sql`${similarity} DESC`)
     .limit(limit);
 }

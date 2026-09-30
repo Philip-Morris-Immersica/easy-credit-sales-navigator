@@ -81,15 +81,15 @@ export async function reindexTree(): Promise<number> {
     embeddings.push(...e);
   }
 
+  // Един групов INSERT (една SQL заявка е атомарна) — прекъсване не оставя частично дърво.
+  const rows = chunks.map((c, i) => ({
+    source: "tree" as const,
+    slugPath: c.slugPath,
+    title: c.title,
+    content: c.content,
+    embedding: embeddings[i],
+  }));
   await db.delete(knowledgeChunks).where(eq(knowledgeChunks.source, "tree"));
-  for (let i = 0; i < chunks.length; i++) {
-    await db.insert(knowledgeChunks).values({
-      source: "tree",
-      slugPath: chunks[i].slugPath,
-      title: chunks[i].title,
-      content: chunks[i].content,
-      embedding: embeddings[i],
-    });
-  }
+  if (rows.length) await db.insert(knowledgeChunks).values(rows);
   return chunks.length;
 }

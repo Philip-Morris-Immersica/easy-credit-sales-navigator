@@ -1,11 +1,12 @@
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import db from "@/db";
 import { modelPricing } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "it") {
+  if (!session?.user || session.user.role !== "it" || !(await isUserActive(session.user.id))) {
     return Response.json({ error: "IT access required" }, { status: 403 });
   }
 

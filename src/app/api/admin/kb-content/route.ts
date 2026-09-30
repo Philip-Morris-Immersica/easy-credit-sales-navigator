@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import db from "@/db";
@@ -10,6 +11,11 @@ export const runtime = "nodejs";
 const TREE_PATH = path.join(process.cwd(), "src", "content", "sales-navigator", "tree.ts");
 const TREE_KEY = "src/content/sales-navigator/tree.ts";
 const MAX_FILE_VERSIONS = 10;
+
+/** На Vercel файловата система е само за четене и приложението чете компилирания модул. */
+const READ_ONLY_HOST = !!process.env.VERCEL;
+const READ_ONLY_MESSAGE =
+  "На продукция tree.ts не може да се редактира от тук: файлът е част от компилираното приложение. Променете го локално, комитнете и внедрете, после натиснете „Преиндексирай“.";
 
 /** Пази текущото съдържание на файла ПРЕДИ презапис; подрязва до последните 10. */
 async function snapshotTree(current: string, actorId: string) {
@@ -36,7 +42,7 @@ async function snapshotTree(current: string, actorId: string) {
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "it") {
+  if (!session?.user || session.user.role !== "it" || !(await isUserActive(session.user.id))) {
     return Response.json({ error: "IT access required" }, { status: 403 });
   }
 
@@ -51,6 +57,9 @@ export async function GET(req: Request) {
         versions: rows.map((r) => ({ id: r.id, changedAt: r.changedAt.toISOString(), size: r.content.length })),
       });
     }
+    if (READ_ONLY_HOST) {
+      return Response.json({ error: READ_ONLY_MESSAGE, readOnly: true }, { status: 409 });
+    }
     const content = await readFile(TREE_PATH, "utf-8");
     return Response.json({ content });
   } catch (e) {
@@ -60,7 +69,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "it") {
+  if (!session?.user || session.user.role !== "it" || !(await isUserActive(session.user.id))) {
     return Response.json({ error: "IT access required" }, { status: 403 });
   }
 
@@ -84,9 +93,15 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid content" }, { status: 400 });
     }
 
+    if (READ_ONLY_HOST) {
+      return Response.json({ error: READ_ONLY_MESSAGE }, { status: 409 });
+    }
+
+    // Първо записът; снимката на старото съдържание — само след успешен запис,
+    // за да не остане в историята „версия“ на промяна, която не се е случила.
     const current = await readFile(TREE_PATH, "utf-8");
-    await snapshotTree(current, session.user.id);
     await writeFile(TREE_PATH, content, "utf-8");
+    await snapshotTree(current, session.user.id);
     await db.insert(auditLog).values({
       actorId: session.user.id,
       action,

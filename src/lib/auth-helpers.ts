@@ -78,6 +78,15 @@ export async function getAdminApiUser() {
   return user;
 }
 
+/** За route handlers: връща потребителя, ако е активен it; иначе null. */
+export async function getITApiUser() {
+  const session = await auth();
+  const user = session?.user;
+  if (!user || user.role !== "it") return null;
+  if (!(await isUserActive(user.id))) return null;
+  return user;
+}
+
 export function isAdmin(role: string) {
   return role === "admin" || role === "it";
 }

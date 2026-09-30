@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isUserActive } from "@/lib/auth-helpers";
 import db from "@/db";
 import { bots, auditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -9,7 +10,7 @@ export async function PATCH(
   { params }: { params: Promise<{ key: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "it") {
+  if (!session?.user || session.user.role !== "it" || !(await isUserActive(session.user.id))) {
     return Response.json({ error: "IT access required" }, { status: 403 });
   }
 

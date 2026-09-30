@@ -33,7 +33,11 @@ function sanitizeTranscript(raw: string): string {
   const lower = text.toLowerCase();
   // Drop results that are essentially just the biasing prompt or a known
   // filler hallucination, and very short punctuation-only fragments.
-  if (HALLUCINATION_PATTERNS.some((p) => lower.includes(p))) return "";
+  // Дългите фрагменти от самата подкана се махат винаги (ехо на подканата); късите
+  // „филър“ фрази — само когато почти целият текст е те, за да не губим реална реплика.
+  if (HALLUCINATION_PATTERNS.some((p) => lower.includes(p) && (p.length > 30 || lower.length <= p.length + 25))) {
+    return "";
+  }
   if (!/[а-яa-z0-9]/i.test(text)) return "";
   return text;
 }
