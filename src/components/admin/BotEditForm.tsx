@@ -16,6 +16,12 @@ interface BotEditFormProps {
   availableModels: string[];
 }
 
+// Base UI Slider връща число (а не масив) при единичен палец, дори когато value е масив.
+function sliderNumber(v: number | readonly number[], fallback: number): number {
+  const n = Array.isArray(v) ? v[0] : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : fallback;
+}
+
 export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -119,7 +125,7 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
             </div>
             <Slider
               value={[Number(form.temperature)]}
-              onValueChange={(vals) => update("temperature", Number((vals as number[])[0]))}
+              onValueChange={(vals) => update("temperature", sliderNumber(vals, form.temperature))}
               min={0} max={2} step={0.05}
             />
             <p className="t-small text-muted-foreground">По-ниска = по-прецизен · По-висока = по-творчески</p>
@@ -188,7 +194,7 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
               </div>
               <Slider
                 value={[Number(form.analysisTemperature)]}
-                onValueChange={(vals) => update("analysisTemperature", Number((vals as number[])[0]))}
+                onValueChange={(vals) => update("analysisTemperature", sliderNumber(vals, form.analysisTemperature))}
                 min={0} max={1} step={0.05}
               />
               <p className="t-small text-muted-foreground">
