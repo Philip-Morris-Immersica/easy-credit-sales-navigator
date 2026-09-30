@@ -122,6 +122,37 @@ export const bots = pgTable("bots", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+// ─── Bot Versions (history of prompt/settings changes) ────────────────────────
+// Всеки ред е ПЪЛЕН снимък на бота в момента ПРЕДИ да бъде презаписан.
+// changedBy/changedAt = кой и кога го е заменил с нова версия
+// (changedBy е null за първоначалния снимък). Пазят се последните 10 на бот.
+
+export const botVersions = pgTable(
+  "bot_versions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    botKey: varchar("bot_key", { length: 100 }).notNull(),
+    systemPrompt: text("system_prompt").notNull().default(""),
+    analysisPrompt: text("analysis_prompt"),
+    welcomeMessage: text("welcome_message").notNull().default(""),
+    model: varchar("model", { length: 100 }).notNull(),
+    analysisModel: varchar("analysis_model", { length: 100 }),
+    temperature: real("temperature").notNull(),
+    maxTokens: integer("max_tokens").notNull(),
+    analysisTemperature: real("analysis_temperature").notNull(),
+    analysisMaxTokens: integer("analysis_max_tokens").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    reason: varchar("reason", { length: 30 }).notNull().default("edit"), // initial | edit | restore | script
+    changedBy: text("changed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("bot_versions_key_idx").on(table.botKey, table.changedAt)]
+);
+
 // ─── Conversations ────────────────────────────────────────────────────────────
 
 export const conversations = pgTable(
@@ -248,6 +279,7 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Bot = typeof bots.$inferSelect;
 export type NewBot = typeof bots.$inferInsert;
+export type BotVersion = typeof botVersions.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;

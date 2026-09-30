@@ -2,7 +2,7 @@ import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
-import { bots } from "../src/db/schema";
+import { bots } from "../../src/db/schema";
 
 async function main() {
   const sql = neon(process.env.DATABASE_URL!);

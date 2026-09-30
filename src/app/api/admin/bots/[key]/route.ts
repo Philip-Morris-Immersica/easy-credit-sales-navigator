@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import db from "@/db";
 import { bots, auditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getBotByKey, snapshotBot } from "@/lib/bot-versions";
 
 export async function PATCH(
   req: Request,
@@ -19,6 +20,13 @@ export async function PATCH(
     systemPrompt, welcomeMessage, model, temperature, maxTokens, enabled,
     analysisPrompt, analysisModel, analysisTemperature, analysisMaxTokens,
   } = body;
+
+  // Пазим текущото състояние ПРЕДИ презаписа (история на версиите).
+  const current = await getBotByKey(key);
+  if (!current) {
+    return Response.json({ error: "Bot not found" }, { status: 404 });
+  }
+  await snapshotBot(current, session.user.id, "edit");
 
   await db
     .update(bots)
