@@ -74,7 +74,13 @@ type Confirm =
   | { kind: "restore"; docId: string; versionId: string; version: number }
   | null;
 
-export function KBDocuments({ documents }: { documents: KBDocItem[] }) {
+export function KBDocuments({
+  documents,
+  templates,
+}: {
+  documents: KBDocItem[];
+  templates: readonly { file: string; label: string }[];
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -209,6 +215,22 @@ export function KBDocuments({ documents }: { documents: KBDocItem[] }) {
         {message && (
           <p className={message.ok ? "t-body text-green-600" : "t-body text-destructive"}>{message.text}</p>
         )}
+        <div className="border-t border-border pt-4 space-y-2">
+          <div className="t-small font-medium">Нямате документ? Свалете шаблон, попълнете го в Word и го качете:</div>
+          <div className="flex flex-wrap gap-2">
+            {templates.map((t) => (
+              <a
+                key={t.file}
+                href={`/templates/${t.file}`}
+                download
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 t-small hover:bg-muted"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t.label}
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Списък */}
