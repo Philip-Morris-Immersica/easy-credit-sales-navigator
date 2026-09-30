@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { streamText, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { eq, desc, and, or, ne } from "drizzle-orm";
 import { auth } from "@/auth";
@@ -13,6 +13,11 @@ import {
   knowledgeChunks,
 } from "@/db/schema";
 import { computeCost } from "@/lib/cost";
+import {
+  buildKnowledgePromptBlock,
+  createKnowledgeTools,
+  type SearchLogEntry,
+} from "@/lib/kb-tools";
 
 export const runtime = "nodejs";
 
@@ -100,14 +105,21 @@ export async function POST(req: Request) {
 
   // Build system prompt — for consultant, inject RAG context + user history
   let systemPrompt = bot.systemPrompt;
+  const isConsultant = bot.kind === "consultant";
+  const searchLog: SearchLogEntry[] = [];
 
-  if (bot.kind === "consultant") {
+  if (isConsultant) {
     // RAG: retrieve relevant knowledge chunks
     const ragContext = await getRAGContext(message, session.user.id, session.user.role);
-    systemPrompt += `\n\n---\n## Съдържание на обучението (извлечено по релевантност)\n${ragContext.courseContent}`;
+    systemPrompt += `\n\n---\n## Съдържание на обучението (извлечено по релевантност)\n${
+      ragContext.courseContent ||
+      "(Към този въпрос не са намерени подходящи откъси. Ако ти трябва детайл, потърси с инструмента searchCompanyKnowledge.)"
+    }`;
     if (ragContext.userHistory) {
       systemPrompt += `\n\n## Последни разговори и анализи на потребителя\n${ragContext.userHistory}`;
     }
+    // Последен в промпта — за да не бъде заглушен от правилата „извън обхвата“ по-горе.
+    systemPrompt += `\n\n---\n${await buildKnowledgePromptBlock()}`;
   }
 
   // Stream from OpenAI
@@ -120,9 +132,15 @@ export async function POST(req: Request) {
     })),
     temperature: bot.temperature,
     maxOutputTokens: bot.maxTokens,
-    onFinish: async ({ text, usage }) => {
-      const tokensIn = usage?.inputTokens ?? 0;
-      const tokensOut = usage?.outputTokens ?? 0;
+    // Само Роби търси в базата знания; симулациите на клиенти нямат инструменти.
+    ...(isConsultant
+      ? { tools: createKnowledgeTools(searchLog), stopWhen: stepCountIs(4) }
+      : {}),
+    onFinish: async ({ steps, totalUsage }) => {
+      // Текстът, който потребителят е видял, е съединение на всички стъпки.
+      const text = steps.map((s) => s.text).join("");
+      const tokensIn = totalUsage?.inputTokens ?? 0;
+      const tokensOut = totalUsage?.outputTokens ?? 0;
       const cost = await computeCost(bot.model, tokensIn, tokensOut);
 
       await db.insert(messages).values({
@@ -133,6 +151,7 @@ export async function POST(req: Request) {
         tokensIn,
         tokensOut,
         cost,
+        meta: searchLog.length > 0 ? { searches: searchLog } : null,
       });
     },
   });
@@ -174,9 +193,13 @@ async function getRAGContext(query: string, userId: string, userRole: string) {
         .from(knowledgeChunks)
         .where(
           and(
+            // само дървото — качените документи се четат с инструмента, при нужда
+            eq(knowledgeChunks.source, "tree"),
             gt(
               sql<number>`1 - (${cosineDistance(knowledgeChunks.embedding, embedding.embedding)})`,
-              0.6
+              // Мерено върху реалните откъси: верните откъси излизат с 0.44–0.58, а
+              // несвързани въпроси не минават 0.35. С 0.6 не се връщаше нищо.
+              0.42
             )
           )
         )
@@ -193,6 +216,7 @@ async function getRAGContext(query: string, userId: string, userRole: string) {
       const chunks = await db
         .select({ title: knowledgeChunks.title, content: knowledgeChunks.content })
         .from(knowledgeChunks)
+        .where(eq(knowledgeChunks.source, "tree"))
         .limit(3);
       courseContent = chunks
         .map((c) => `### ${c.title ?? "Раздел"}\n${c.content}`)

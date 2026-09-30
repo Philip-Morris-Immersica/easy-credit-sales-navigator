@@ -26,6 +26,22 @@ function resolveBackHref(from: string | undefined): string {
   return "/me";
 }
 
+/** Само за админи/ИТ: какво е търсил Роби в базата знания преди да отговори. */
+function SearchTrace({ meta }: { meta: unknown }) {
+  const searches = (meta as { searches?: { query: string; source: string; titles: string[] }[] } | null)?.searches;
+  if (!searches?.length) return null;
+  return (
+    <div className="mt-2 border-t border-border/60 pt-1.5 text-xs opacity-70 space-y-0.5">
+      {searches.map((s, i) => (
+        <div key={i}>
+          Търсене ({s.source === "documents" ? "документи" : "обучение"}): „{s.query}“ →{" "}
+          {s.titles.length ? s.titles.join("; ") : "няма резултат"}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default async function ConversationPage({
   params,
   searchParams,
@@ -137,6 +153,7 @@ export default async function ConversationPage({
                     {msg.role === "user" ? "Консултант" : "Клиент"}
                   </div>
                   {msg.content}
+                  {isAdminOrIT && <SearchTrace meta={msg.meta} />}
                 </div>
               </div>
             ))}

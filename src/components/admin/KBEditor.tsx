@@ -11,8 +11,43 @@ export function KBEditor() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [versions, setVersions] = useState<{ id: string; changedAt: string; size: number }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  async function loadVersions() {
+    try {
+      const d = await fetch("/api/admin/kb-content?versions=1").then((r) => r.json());
+      if (Array.isArray(d.versions)) setVersions(d.versions);
+    } catch { /* историята не е критична */ }
+  }
+
+  async function handleRestore(id: string) {
+    if (!confirm("Файлът ще бъде заменен с избраната версия (текущата се запазва в историята). Продължи?")) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/kb-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restoreVersionId: id }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Грешка при връщане");
+      setContent(d.content);
+      setSaved(true);
+      await loadVersions();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
+    fetch("/api/admin/kb-content?versions=1")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.versions)) setVersions(d.versions); })
+      .catch(() => { /* историята не е критична */ });
     fetch("/api/admin/kb-content")
       .then((r) => r.json())
       .then((d) => {
@@ -37,6 +72,7 @@ export function KBEditor() {
       if (!res.ok) throw new Error(d.error ?? "Грешка при запазване");
       setSaved(true);
       setEditing(false);
+      await loadVersions();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -108,6 +144,30 @@ export function KBEditor() {
           {content}
         </pre>
       )}
+
+      <div className="space-y-2">
+        <Button size="sm" variant="ghost" onClick={() => setShowHistory((v) => !v)}>
+          История на файла ({versions.length})
+        </Button>
+        {showHistory && (
+          versions.length === 0 ? (
+            <p className="t-small text-muted-foreground">Още няма запазени версии. Предишното съдържание се пази при всяко „Запази файла“ (последните 10).</p>
+          ) : (
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {versions.map((v) => (
+                <li key={v.id} className="flex items-center gap-3 p-3 t-small">
+                  <span className="flex-1">
+                    {new Date(v.changedAt).toLocaleString("bg-BG")} · {(v.size / 1024).toFixed(1)} KB
+                  </span>
+                  <Button size="sm" variant="outline" disabled={saving} onClick={() => handleRestore(v.id)}>
+                    Върни тази версия
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )
+        )}
+      </div>
 
       {editing && (
         <p className="t-small text-orange-600">

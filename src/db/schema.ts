@@ -199,10 +199,11 @@ export const messages = pgTable(
     model: varchar("model", { length: 100 }),
     tokensIn: integer("tokens_in"),
     tokensOut: integer("tokens_out"),
-    cost: real("cost"),
-    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  },
-  (table) => [index("msg_conv_idx").on(table.conversationId)]
+      cost: real("cost"),
+      meta: jsonb("meta"), // напр. { searches: [{ query, source, titles }] } при търсене на Роби
+      createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    },
+    (table) => [index("msg_conv_idx").on(table.conversationId)]
 );
 
 // ─── Analyses ─────────────────────────────────────────────────────────────────
@@ -228,6 +229,75 @@ export const analyses = pgTable("analyses", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+// ─── KB Documents (качени от клиента) ─────────────────────────────────────────
+
+export const kbDocuments = pgTable(
+  "kb_documents",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    title: text("title").notNull(),
+    category: varchar("category", { length: 40 }).notNull(), // KB_CATEGORIES
+    fileName: text("file_name").notNull(),
+    mimeType: varchar("mime_type", { length: 120 }).notNull().default(""),
+    rawText: text("raw_text").notNull(),
+    meta: jsonb("meta"), // front-matter: валидно_от, версия на клиента и т.н.
+    version: integer("version").notNull().default(1),
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | archived
+    uploadedBy: text("uploaded_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("kb_documents_status_idx").on(table.status)]
+);
+
+/** Пълният текст на всяка ПРЕДИШНА версия на документ. */
+export const kbDocumentVersions = pgTable(
+  "kb_document_versions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => kbDocuments.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    title: text("title").notNull(),
+    category: varchar("category", { length: 40 }).notNull(),
+    fileName: text("file_name").notNull(),
+    rawText: text("raw_text").notNull(),
+    meta: jsonb("meta"),
+    reason: varchar("reason", { length: 30 }).notNull().default("replace"), // replace | restore | archive
+    changedBy: text("changed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("kb_doc_versions_doc_idx").on(table.documentId, table.changedAt),
+  ]
+);
+
+/** Предишни съдържания на файлове, редактирани от админа (tree.ts). */
+export const kbFileVersions = pgTable(
+  "kb_file_versions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    filePath: text("file_path").notNull(),
+    content: text("content").notNull(),
+    changedBy: text("changed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("kb_file_versions_idx").on(table.filePath, table.changedAt)]
+);
+
 // ─── Knowledge Chunks (pgvector) ──────────────────────────────────────────────
 
 export const knowledgeChunks = pgTable(
@@ -236,7 +306,10 @@ export const knowledgeChunks = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    source: varchar("source", { length: 50 }).notNull().default("tree"),
+    source: varchar("source", { length: 50 }).notNull().default("tree"), // tree | document
+    documentId: text("document_id").references(() => kbDocuments.id, {
+      onDelete: "cascade",
+    }),
     slugPath: text("slug_path"),
     title: text("title"),
     content: text("content").notNull(),
@@ -284,5 +357,7 @@ export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+export type KbDocument = typeof kbDocuments.$inferSelect;
+export type KbDocumentVersion = typeof kbDocumentVersions.$inferSelect;
 export type ModelPricing = typeof modelPricing.$inferSelect;
 export type AuditLogEntry = typeof auditLog.$inferSelect;

@@ -66,6 +66,18 @@ export async function isUserActive(userId: string): Promise<boolean> {
   return !!row?.active;
 }
 
+/**
+ * За route handlers: връща потребителя, ако е активен admin или it; иначе null.
+ * (Същото като requireAdmin, но без redirect — API маршрутите връщат JSON.)
+ */
+export async function getAdminApiUser() {
+  const session = await auth();
+  const user = session?.user;
+  if (!user || (user.role !== "admin" && user.role !== "it")) return null;
+  if (!(await isUserActive(user.id))) return null;
+  return user;
+}
+
 export function isAdmin(role: string) {
   return role === "admin" || role === "it";
 }

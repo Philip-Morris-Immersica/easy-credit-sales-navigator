@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
   { label: "Анализи", href: "/admin/analytics", icon: LineChart },
   { label: "Репорти", href: "/admin/reports", icon: BarChart2 },
   { label: "Ботове", href: "/admin/bots", icon: Bot, itOnly: true },
-  { label: "База знания", href: "/admin/kb", icon: Database, itOnly: true },
+  { label: "База знания", href: "/admin/kb", icon: Database },
   { label: "Конфигурация", href: "/admin/configuration", icon: Settings, itOnly: true },
   { label: "Администратори", href: "/admin/admins", icon: ShieldCheck },
   { label: "Одит лог", href: "/admin/audit", icon: ScrollText, itOnly: true },
