@@ -37,6 +37,10 @@ export interface DialogueBlock {
 export interface PersonaData {
   name: string;
   contactType: string;
+  /** Отношение на клиента към компанията/консултанта: нов · познат · лоялен · лоялен VIP */
+  relationship: string;
+  /** Какво обръщение се очаква ("Вие" / "ти" / по установеното) и защо */
+  addressForm: string;
   profile: string;
   context: string;
   goal: string;
