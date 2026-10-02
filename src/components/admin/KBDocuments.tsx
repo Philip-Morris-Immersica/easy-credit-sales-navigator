@@ -24,7 +24,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Archive,
   ArchiveRestore,
   ChevronDown,
   ChevronUp,
@@ -33,6 +32,7 @@ import {
   History,
   Loader2,
   RotateCcw,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { KB_CATEGORIES } from "@/lib/kb-categories";
@@ -60,7 +60,7 @@ export interface KBDocItem {
 const REASON_LABEL: Record<string, string> = {
   replace: "Заменена с нова версия",
   restore: "Заменена при връщане на версия",
-  archive: "Архивирана",
+  archive: "Запазена при изтриване",
 };
 
 function fmt(iso: string) {
@@ -71,8 +71,52 @@ function fmt(iso: string) {
 
 type Confirm =
   | { kind: "archive"; docId: string; title: string }
+  | { kind: "purge"; docId: string; title: string; versions: number }
   | { kind: "restore"; docId: string; versionId: string; version: number }
+  | { kind: "deleteVersion"; docId: string; versionId: string; version: number }
+  | { kind: "deleteAllVersions"; docId: string; title: string; count: number }
   | null;
+
+const CONFIRM_TEXT: Record<
+  NonNullable<Confirm>["kind"],
+  { title: string; action: string; destructive: boolean; describe: (c: NonNullable<Confirm>) => string }
+> = {
+  archive: {
+    title: "Изтриване на документ",
+    action: "Изтрий",
+    destructive: true,
+    describe: (c) =>
+      `„${"title" in c ? c.title : ""}“ спира да се чете от Роби веднага и отива в „Изтрити“. Оттам може да го възстановите или да го изтриете окончателно.`,
+  },
+  purge: {
+    title: "Окончателно изтриване",
+    action: "Изтрий окончателно",
+    destructive: true,
+    describe: (c) =>
+      `„${"title" in c ? c.title : ""}“${c.kind === "purge" && c.versions > 0 ? ` и старите му версии (${c.versions})` : ""} ще бъдат изтрити завинаги. Това не може да се отмени.`,
+  },
+  restore: {
+    title: "Връщане на версия",
+    action: "Върни",
+    destructive: false,
+    describe: (c) =>
+      `Текущият текст ще бъде заменен с версия ${"version" in c ? c.version : ""}. Текущата версия се запазва в историята.`,
+  },
+  deleteVersion: {
+    title: "Изтриване на стара версия",
+    action: "Изтрий версията",
+    destructive: true,
+    describe: (c) =>
+      `Версия ${"version" in c ? c.version : ""} ще бъде изтрита завинаги. Текущата версия, която Роби чете, не се засяга.`,
+  },
+  deleteAllVersions: {
+    title: "Изтриване на всички стари версии",
+    action: "Изтрий всички",
+    destructive: true,
+    describe: (c) =>
+      `Всички стари версии на „${"title" in c ? c.title : ""}“${c.kind === "deleteAllVersions" ? ` (${c.count})` : ""} ще бъдат изтрити завинаги. Текущата версия, която Роби чете, не се засяга.`,
+  },
+};
 
 export function KBDocuments({
   documents,
@@ -89,13 +133,14 @@ export function KBDocuments({
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [view, setView] = useState<"active" | "archived">("active");
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const [replaceId, setReplaceId] = useState<string | null>(null);
 
-  const visible = documents.filter((d) => showArchived || d.status === "active");
-  const archivedCount = documents.filter((d) => d.status === "archived").length;
+  const visible = documents.filter((d) => d.status === view);
+  const activeCount = documents.filter((d) => d.status === "active").length;
+  const archivedCount = documents.length - activeCount;
 
   async function send(form: FormData, key: string, okText: (r: { chunks: number; version: number }) => string) {
     setBusy(key);
@@ -140,15 +185,16 @@ export function KBDocuments({
     if (replaceRef.current) replaceRef.current.value = "";
   }
 
-  async function patch(docId: string, body: Record<string, unknown>, okText: string) {
+  async function patch(docId: string, body: Record<string, unknown> | null, okText: string) {
     setBusy(docId);
     setMessage(null);
     try {
-      const res = await fetch(`/api/admin/kb-documents/${docId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(
+        `/api/admin/kb-documents/${docId}`,
+        body
+          ? { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+          : { method: "DELETE" }
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Грешка");
       setMessage({ ok: true, text: okText });
@@ -160,6 +206,23 @@ export function KBDocuments({
       setConfirm(null);
     }
   }
+
+  function runConfirm(c: NonNullable<Confirm>) {
+    switch (c.kind) {
+      case "archive":
+        return patch(c.docId, { action: "archive" }, `„${c.title}“ е преместен в „Изтрити“. Роби вече не го чете.`);
+      case "purge":
+        return patch(c.docId, null, `„${c.title}“ е изтрит окончателно.`);
+      case "restore":
+        return patch(c.docId, { action: "restore", versionId: c.versionId }, `Върната е версия ${c.version}.`);
+      case "deleteVersion":
+        return patch(c.docId, { action: "deleteVersion", versionId: c.versionId }, `Версия ${c.version} е изтрита.`);
+      case "deleteAllVersions":
+        return patch(c.docId, { action: "deleteAllVersions" }, `Старите версии на „${c.title}“ са изтрити.`);
+    }
+  }
+
+  const confirmText = confirm ? CONFIRM_TEXT[confirm.kind] : null;
 
   return (
     <div className="space-y-6">
@@ -235,14 +298,31 @@ export function KBDocuments({
 
       {/* Списък */}
       <div className="bg-white rounded-2xl border border-border p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="t-subheading font-semibold">Документи ({visible.length})</h2>
-          {archivedCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => setShowArchived((v) => !v)}>
-              {showArchived ? "Скрий архивираните" : `Покажи архивираните (${archivedCount})`}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="t-subheading font-semibold">Документи</h2>
+          <div className="flex gap-1 rounded-lg border border-border p-1">
+            <Button
+              variant={view === "active" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => { setView("active"); setExpanded(null); }}
+            >
+              Активни ({activeCount})
             </Button>
-          )}
+            <Button
+              variant={view === "archived" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => { setView("archived"); setExpanded(null); }}
+              className="gap-1"
+            >
+              <Trash2 className="h-4 w-4" /> Изтрити ({archivedCount})
+            </Button>
+          </div>
         </div>
+        {view === "archived" && (
+          <p className="t-small text-muted-foreground">
+            Роби не чете изтритите документи. Може да ги възстановите или да ги изтриете окончателно.
+          </p>
+        )}
 
         <input
           ref={replaceRef}
@@ -256,7 +336,9 @@ export function KBDocuments({
         />
 
         {visible.length === 0 ? (
-          <p className="t-body text-muted-foreground">Още няма качени документи.</p>
+          <p className="t-body text-muted-foreground">
+            {view === "active" ? "Още няма качени документи." : "Няма изтрити документи."}
+          </p>
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border">
             {visible.map((d) => {
@@ -268,7 +350,7 @@ export function KBDocuments({
                     <div className="min-w-0 flex-1">
                       <div className="t-body font-medium flex items-center gap-2">
                         {d.title}
-                        {archived && <Badge variant="secondary">Архивиран</Badge>}
+                        {archived && <Badge variant="secondary">Изтрит</Badge>}
                       </div>
                       <div className="t-small text-muted-foreground">
                         {d.category} · версия {d.version} · {d.uploadedByName ?? "—"} · {fmt(d.updatedAt)} · {d.fileName}
@@ -289,65 +371,106 @@ export function KBDocuments({
                         Нова версия
                       </Button>
                     )}
-                    {archived ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={busy !== null}
-                        onClick={() => patch(d.id, { action: "unarchive" }, "Документът е възстановен и индексиран.")}
-                        className="gap-1"
-                      >
-                        <ArchiveRestore className="h-4 w-4" /> Възстанови
+                    {!archived && (
+                      <Button variant="ghost" size="sm" onClick={() => setExpanded(open ? null : d.id)} className="gap-1">
+                        <History className="h-4 w-4" />
+                        Стари версии ({d.versions.length})
+                        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </Button>
+                    )}
+                    {archived ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy !== null}
+                          onClick={() => patch(d.id, { action: "unarchive" }, `„${d.title}“ е възстановен и Роби отново го чете.`)}
+                          className="gap-1"
+                        >
+                          {busy === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArchiveRestore className="h-4 w-4" />}
+                          Възстанови
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={busy !== null}
+                          onClick={() => setConfirm({ kind: "purge", docId: d.id, title: d.title, versions: d.versions.length })}
+                          className="gap-1"
+                        >
+                          <Trash2 className="h-4 w-4" /> Изтрий окончателно
+                        </Button>
+                      </>
                     ) : (
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
                         disabled={busy !== null}
                         onClick={() => setConfirm({ kind: "archive", docId: d.id, title: d.title })}
                         className="gap-1"
                       >
-                        <Archive className="h-4 w-4" /> Архивирай
+                        <Trash2 className="h-4 w-4" /> Изтрий
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => setExpanded(open ? null : d.id)} className="gap-1">
-                      <History className="h-4 w-4" />
-                      Версии ({d.versions.length})
-                      {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
                   </div>
 
-                  {open && (
+                  {open && !archived && (
                     d.versions.length === 0 ? (
-                      <p className="t-small text-muted-foreground">Няма по-стари версии. Предишната версия се запазва, когато качите нова.</p>
+                      <p className="t-small text-muted-foreground">Няма стари версии. Предишната версия се запазва, когато качите нова.</p>
                     ) : (
-                      <ul className="divide-y divide-border rounded-lg border border-border">
-                        {d.versions.map((v) => (
-                          <li key={v.id} className="flex flex-wrap items-center gap-3 p-3 t-small">
-                            <span className="flex-1">
-                              Версия {v.version} · {fmt(v.changedAt)} · {REASON_LABEL[v.reason] ?? v.reason}
-                              {v.changedByName ? ` · ${v.changedByName}` : ""}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(`/api/admin/kb-documents/${d.id}/download?versionId=${v.id}`)}
-                              className="gap-1"
-                            >
-                              <Download className="h-4 w-4" /> Изтегли
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={busy !== null}
-                              onClick={() => setConfirm({ kind: "restore", docId: d.id, versionId: v.id, version: v.version })}
-                              className="gap-1"
-                            >
-                              <RotateCcw className="h-4 w-4" /> Върни
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="t-small text-muted-foreground">
+                            Роби чете само текущата версия ({d.version}). Старите се пазят за връщане — последните 10.
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy !== null}
+                            onClick={() => setConfirm({ kind: "deleteAllVersions", docId: d.id, title: d.title, count: d.versions.length })}
+                            className="gap-1 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" /> Изтрий всички стари версии
+                          </Button>
+                        </div>
+                        <ul className="divide-y divide-border rounded-lg border border-border">
+                          {d.versions.map((v) => (
+                            <li key={v.id} className="flex flex-wrap items-center gap-3 p-3 t-small">
+                              <span className="flex-1">
+                                Версия {v.version} · {fmt(v.changedAt)} · {REASON_LABEL[v.reason] ?? v.reason}
+                                {v.changedByName ? ` · ${v.changedByName}` : ""}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`/api/admin/kb-documents/${d.id}/download?versionId=${v.id}`)}
+                                className="gap-1"
+                              >
+                                <Download className="h-4 w-4" /> Изтегли
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={busy !== null}
+                                onClick={() => setConfirm({ kind: "restore", docId: d.id, versionId: v.id, version: v.version })}
+                                className="gap-1"
+                              >
+                                <RotateCcw className="h-4 w-4" /> Върни
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={busy !== null}
+                                aria-label={`Изтрий версия ${v.version}`}
+                                title="Изтрий тази версия"
+                                onClick={() => setConfirm({ kind: "deleteVersion", docId: d.id, versionId: v.id, version: v.version })}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )
                   )}
                 </li>
@@ -363,30 +486,21 @@ export function KBDocuments({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirm?.kind === "archive" ? "Архивиране на документ" : "Връщане на версия"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm?.kind === "archive"
-                ? `„${confirm.title}“ ще спре да се чете от Роби. Текстът се пази и документът може да бъде възстановен.`
-                : confirm?.kind === "restore"
-                  ? `Текущият текст ще бъде заменен с версия ${confirm.version}. Текущата версия се запазва в историята.`
-                  : ""}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{confirmText?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirm && confirmText ? confirmText.describe(confirm) : ""}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy !== null}>Отказ</AlertDialogCancel>
             <AlertDialogAction
+              variant={confirmText?.destructive ? "destructive" : "default"}
               disabled={busy !== null}
               onClick={(e) => {
                 e.preventDefault();
-                if (!confirm) return;
-                if (confirm.kind === "archive") patch(confirm.docId, { action: "archive" }, "Документът е архивиран.");
-                else patch(confirm.docId, { action: "restore", versionId: confirm.versionId }, `Върната е версия ${confirm.version}.`);
+                if (confirm) runConfirm(confirm);
               }}
             >
               {busy !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {confirm?.kind === "archive" ? "Архивирай" : "Върни"}
+              {confirmText?.action}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

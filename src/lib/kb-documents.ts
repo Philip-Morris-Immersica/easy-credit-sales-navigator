@@ -521,6 +521,37 @@ export async function restoreDocumentVersion(id: string, versionId: string, acto
   await audit(actorId, "kb.document.restore", id, { fromVersion: old.version, newVersion: current.version + 1 });
 }
 
+/** Окончателно изтриване — само на вече изтрит (архивиран) документ, за да няма случайна загуба. */
+export async function deleteDocumentPermanently(id: string, actorId: string) {
+  const doc = await getDocument(id);
+  if (!doc) throw new KbError("Документът не е намерен.", 404);
+  if (doc.status !== "archived") {
+    throw new KbError("Окончателно може да се изтрие само документ от „Изтрити“.", 409);
+  }
+  // Версиите и откъсите се трият каскадно.
+  await db.delete(kbDocuments).where(eq(kbDocuments.id, id));
+  await audit(actorId, "kb.document.delete", id, { title: doc.title, version: doc.version });
+}
+
+/** Изтрива една стара версия от историята. Текущата версия не се засяга. */
+export async function deleteDocumentVersion(id: string, versionId: string, actorId: string) {
+  const deleted = await db
+    .delete(kbDocumentVersions)
+    .where(and(eq(kbDocumentVersions.id, versionId), eq(kbDocumentVersions.documentId, id)))
+    .returning({ version: kbDocumentVersions.version });
+  if (deleted.length === 0) throw new KbError("Версията не е намерена.", 404);
+  await audit(actorId, "kb.document.version.delete", id, { version: deleted[0].version });
+}
+
+/** Изтрива всички стари версии на документа. Текущата версия не се засяга. */
+export async function deleteAllDocumentVersions(id: string, actorId: string) {
+  const deleted = await db
+    .delete(kbDocumentVersions)
+    .where(eq(kbDocumentVersions.documentId, id))
+    .returning({ id: kbDocumentVersions.id });
+  await audit(actorId, "kb.document.versions.delete", id, { count: deleted.length });
+}
+
 // ─── Търсене ──────────────────────────────────────────────────────────────────
 
 export type KnowledgeSource = "document" | "tree";

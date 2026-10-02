@@ -2,6 +2,9 @@ import { getAdminApiUser } from "@/lib/auth-helpers";
 import {
   KbError,
   archiveDocument,
+  deleteAllDocumentVersions,
+  deleteDocumentPermanently,
+  deleteDocumentVersion,
   restoreDocumentVersion,
   unarchiveDocument,
 } from "@/lib/kb-documents";
@@ -9,7 +12,10 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-/** Действия върху документ: { action: "archive" | "unarchive" | "restore", versionId? } */
+/**
+ * Действия върху документ:
+ * { action: "archive" | "unarchive" | "restore" | "deleteVersion" | "deleteAllVersions", versionId? }
+ */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,9 +37,34 @@ export async function PATCH(
         if (typeof body.versionId !== "string") throw new KbError("Липсва версия.");
         await restoreDocumentVersion(id, body.versionId, user.id);
         break;
+      case "deleteVersion":
+        if (typeof body.versionId !== "string") throw new KbError("Липсва версия.");
+        await deleteDocumentVersion(id, body.versionId, user.id);
+        break;
+      case "deleteAllVersions":
+        await deleteAllDocumentVersions(id, user.id);
+        break;
       default:
         throw new KbError("Непознато действие.");
     }
+    return Response.json({ success: true });
+  } catch (e) {
+    if (e instanceof KbError) return Response.json({ error: e.message }, { status: e.status });
+    return Response.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+/** Окончателно изтриване на документ от „Изтрити“ (заедно с версиите и откъсите). */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getAdminApiUser();
+  if (!user) return Response.json({ error: "Нужен е достъп на администратор." }, { status: 403 });
+
+  const { id } = await params;
+  try {
+    await deleteDocumentPermanently(id, user.id);
     return Response.json({ success: true });
   } catch (e) {
     if (e instanceof KbError) return Response.json({ error: e.message }, { status: e.status });
