@@ -71,7 +71,6 @@ function PersonaOverlay({
 }) {
   const metaRows: [string, string][] = [
     ["Тип контакт", persona.contactType],
-    ["Отношение и обръщение", `${persona.relationship}. Обръщение: ${persona.addressForm}.`],
     ["Персонаж", persona.name],
     ["Профил", persona.profile],
     ["Контекст", persona.context],
