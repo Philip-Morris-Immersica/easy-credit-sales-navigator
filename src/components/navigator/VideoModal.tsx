@@ -18,8 +18,8 @@ interface VideoModalProps {
 /** Build the Google Drive preview embed URL from any share/view/preview link */
 function toEmbedUrl(url: string): string {
   const match = url.match(/\/file\/d\/([^/?]+)/);
-  if (match) return `https://drive.google.com/file/d/${match[1]}/preview`;
-  if (!url.includes("/")) return `https://drive.google.com/file/d/${url}/preview`;
+  if (match) return `https://drive.google.com/file/d/${match[1]}/preview?autoplay=1`;
+  if (!url.includes("/")) return `https://drive.google.com/file/d/${url}/preview?autoplay=1`;
   return url;
 }
 
