@@ -4,6 +4,7 @@ import { eq, asc } from "drizzle-orm";
 import db from "@/db";
 import { conversations, messages, bots, analyses } from "@/db/schema";
 import { computeCost } from "@/lib/cost";
+import { getModelCallOptions } from "@/lib/model-params";
 import { salesNavigatorConfig } from "@/content/index";
 import type { PersonaData } from "@/components/navigator/types";
 
@@ -215,8 +216,13 @@ export async function generateAnalysisForConversation(
     model: openai(analysisModel),
     system,
     prompt: `Разговор:\n${transcript}`,
-    temperature: analysisTemperature,
-    maxOutputTokens: analysisMaxTokens,
+    // temperature / reasoning / лимит според модела (gpt-4.1 — непроменено).
+    ...getModelCallOptions(
+      analysisModel,
+      "analysis",
+      analysisTemperature,
+      analysisMaxTokens
+    ),
   });
 
   const cost = await computeCost(

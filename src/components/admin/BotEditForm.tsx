@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2, Loader2, MessageSquare, BarChart2 } from "lucide-react";
 import type { Bot } from "@/db/schema";
+import { isReasoningModel } from "@/lib/model-params";
 
 interface BotEditFormProps {
   bot: Bot;
@@ -129,6 +130,11 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
               min={0} max={2} step={0.05}
             />
             <p className="t-small text-muted-foreground">По-ниска = по-прецизен · По-висока = по-творчески</p>
+            {isReasoningModel(form.model) && (
+              <p className="t-small text-muted-foreground">
+                Моделът {form.model} не поддържа температура — настройката се пренебрегва.
+              </p>
+            )}
           </div>
 
           {/* Max tokens */}
@@ -200,6 +206,11 @@ export function BotEditForm({ bot, availableModels }: BotEditFormProps) {
               <p className="t-small text-muted-foreground">
                 Препоръчително: 0.2–0.4 за по-стабилен JSON изход
               </p>
+              {isReasoningModel(form.analysisModel) && (
+                <p className="t-small text-muted-foreground">
+                  Моделът {form.analysisModel} не поддържа температура — настройката се пренебрегва.
+                </p>
+              )}
             </div>
 
             {/* Analysis max tokens */}
