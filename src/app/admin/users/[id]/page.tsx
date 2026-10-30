@@ -3,6 +3,7 @@ import db from "@/db";
 import { users, conversations, messages, analyses, bots } from "@/db/schema";
 import { eq, desc, count, sum, and, gte } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { rollupUserTotal } from "@/lib/cost-rollups";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -81,8 +82,11 @@ export default async function AdminUserDetailPage({
     .innerJoin(conversations, eq(messages.conversationId, conversations.id))
     .where(eq(conversations.userId, id));
 
-  const totalCost = parseFloat(String(costRes?.total ?? "0"));
-  const totalTokens = parseInt(String(costRes?.tokensIn ?? "0")) + parseInt(String(costRes?.tokensOut ?? "0"));
+  const rolled = await rollupUserTotal(id); // изтрити след 12 месеца (Т6)
+  const totalCost = parseFloat(String(costRes?.total ?? "0")) + rolled.cost;
+  const totalTokens =
+    parseInt(String(costRes?.tokensIn ?? "0")) + parseInt(String(costRes?.tokensOut ?? "0")) +
+    rolled.tokensIn + rolled.tokensOut;
 
   return (
     <div className="space-y-8 max-w-5xl">

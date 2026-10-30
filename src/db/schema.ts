@@ -12,6 +12,9 @@ import {
   index,
   vector,
   uniqueIndex,
+  bigint,
+  date,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -326,6 +329,37 @@ export const modelPricing = pgTable("model_pricing", {
   inputPer1k: real("input_per_1k").notNull().default(0),
   outputPer1k: real("output_per_1k").notNull().default(0),
 });
+
+// ─── Cost Rollups (Т6) ────────────────────────────────────────────────────────
+
+/**
+ * Обобщени разходи на вече изтрити (след 12 месеца) разговори. Преди да се
+ * изтрие разговор, съобщенията му се сумират тук по (ден, потребител, модел),
+ * за да не се променят справките за разходите за минали периоди. Няма текст
+ * на съобщения — само броячи и суми. `userId` става null, ако акаунтът се
+ * изтрие. Виж src/lib/retention.ts и src/lib/cost-rollups.ts.
+ */
+export const costRollups = pgTable(
+  "cost_rollups",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    /** Календарен ден (Europe/Sofia) на създаване на съобщенията. */
+    day: date("day", { mode: "string" }).notNull(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    model: varchar("model", { length: 100 }).notNull().default(""),
+    messages: integer("messages").notNull().default(0),
+    tokensIn: bigint("tokens_in", { mode: "number" }).notNull().default(0),
+    tokensOut: bigint("tokens_out", { mode: "number" }).notNull().default(0),
+    cost: doublePrecision("cost").notNull().default(0),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("cost_rollups_key_idx").on(table.day, table.userId, table.model),
+    index("cost_rollups_day_idx").on(table.day),
+  ]
+);
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
