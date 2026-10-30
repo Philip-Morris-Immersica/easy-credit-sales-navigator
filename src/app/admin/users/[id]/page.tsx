@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { UserActiveToggle } from "@/components/admin/UserActiveToggle";
 import { UserNameEditor } from "@/components/admin/UserNameEditor";
+import { UserDeleteButton } from "@/components/admin/UserDeleteButton";
+import { ExportResultsButton } from "@/components/ExportResultsButton";
 
 function formatDate(d: Date | null) {
   if (!d) return "—";
@@ -34,6 +36,9 @@ export default async function AdminUserDetailPage({
     .then((r) => r[0]);
 
   if (!user) notFound();
+
+  // Изтриване: не себе си; admin не трие it (както при ролите).
+  const canDelete = user.id !== viewer.id && !(viewer.role === "admin" && user.role === "it");
 
   // All conversations with message count and analysis
   const convRows = await db
@@ -82,7 +87,7 @@ export default async function AdminUserDetailPage({
   return (
     <div className="space-y-8 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Link href="/admin/users" className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
@@ -105,6 +110,15 @@ export default async function AdminUserDetailPage({
           </Badge>
           <UserNameEditor userId={user.id} currentName={user.name} />
           <UserActiveToggle userId={user.id} active={user.active} isSelf={user.id === viewer.id} />
+          <ExportResultsButton href={`/api/admin/users/${user.id}/export`} />
+          {canDelete && (
+            <UserDeleteButton
+              userId={user.id}
+              email={user.email}
+              name={user.name}
+              conversationCount={convRows.length}
+            />
+          )}
         </div>
       </div>
 
