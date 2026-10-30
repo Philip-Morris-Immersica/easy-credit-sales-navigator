@@ -7,6 +7,7 @@ import {
   type KbDocument,
 } from "@/db/schema";
 import { KB_CATEGORIES, type KbCategory } from "@/lib/kb-categories";
+import { KB_FORBIDDEN_CONFIRM_LABEL } from "@/lib/kb-rules";
 import { and, desc, eq, notInArray } from "drizzle-orm";
 import { openai } from "@ai-sdk/openai";
 import { embed, embedMany } from "ai";
@@ -391,6 +392,8 @@ interface UploadInput {
   mimeType: string;
   parsed: ParsedDocument;
   actorId: string;
+  /** Администраторът е потвърдил, че файлът не съдържа забранени материали (записва се в журнала). */
+  forbiddenConfirmed: true;
 }
 
 export async function createDocument(input: UploadInput): Promise<{ doc: KbDocument; chunks: number }> {
@@ -408,7 +411,13 @@ export async function createDocument(input: UploadInput): Promise<{ doc: KbDocum
     .returning();
   try {
     const chunks = await indexDocument(doc);
-    await audit(input.actorId, "kb.document.create", doc.id, { title: doc.title, category: doc.category, chunks });
+    await audit(input.actorId, "kb.document.create", doc.id, {
+      title: doc.title,
+      category: doc.category,
+      chunks,
+      forbiddenMaterialsConfirmed: input.forbiddenConfirmed,
+      confirmation: KB_FORBIDDEN_CONFIRM_LABEL,
+    });
     return { doc, chunks };
   } catch (e) {
     // Не оставяме документ, който Роби не може да намери.
@@ -452,7 +461,13 @@ export async function replaceDocument(
   await snapshotVersion(current, input.actorId, "replace");
 
   await writeChunks(id, chunks, embeddings);
-  await audit(input.actorId, "kb.document.replace", id, { title: doc.title, version: doc.version, chunks: chunks.length });
+  await audit(input.actorId, "kb.document.replace", id, {
+    title: doc.title,
+    version: doc.version,
+    chunks: chunks.length,
+    forbiddenMaterialsConfirmed: input.forbiddenConfirmed,
+    confirmation: KB_FORBIDDEN_CONFIRM_LABEL,
+  });
   return { doc, chunks: chunks.length };
 }
 

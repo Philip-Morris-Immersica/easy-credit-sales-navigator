@@ -33,9 +33,16 @@ import {
   Loader2,
   RotateCcw,
   Trash2,
+  TriangleAlert,
   Upload,
 } from "lucide-react";
 import { KB_CATEGORIES } from "@/lib/kb-categories";
+import {
+  KB_FORBIDDEN_CONFIRM_FIELD,
+  KB_FORBIDDEN_CONFIRM_LABEL,
+  KB_FORBIDDEN_MATERIALS,
+  KB_FORBIDDEN_TITLE,
+} from "@/lib/kb-rules";
 
 export interface KBDocVersionItem {
   id: string;
@@ -118,6 +125,46 @@ const CONFIRM_TEXT: Record<
   },
 };
 
+/** Предупреждение със списъка на забранените материали + задължително тикче (текстът е в kb-rules.ts). */
+function ForbiddenMaterialsConfirm({
+  id,
+  checked,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3">
+      <div className="flex items-center gap-2 t-body font-semibold text-amber-900">
+        <TriangleAlert className="h-4 w-4" />
+        {KB_FORBIDDEN_TITLE}
+      </div>
+      <ul className="list-disc list-inside space-y-0.5 t-small text-amber-900">
+        {KB_FORBIDDEN_MATERIALS.map((m) => (
+          <li key={m}>{m}</li>
+        ))}
+      </ul>
+      <div className="flex items-start gap-2">
+        <input
+          id={id}
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="mt-0.5 h-4 w-4"
+        />
+        <Label htmlFor={id} className="t-body font-medium text-amber-900">
+          {KB_FORBIDDEN_CONFIRM_LABEL}
+        </Label>
+      </div>
+    </div>
+  );
+}
+
 export function KBDocuments({
   documents,
   templates,
@@ -137,6 +184,10 @@ export function KBDocuments({
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const [replaceId, setReplaceId] = useState<string | null>(null);
+  const [replaceTitle, setReplaceTitle] = useState("");
+  const [replaceDialog, setReplaceDialog] = useState(false); // стъпка „потвърждение“ преди избор на файл за нова версия
+  const [confirmedUpload, setConfirmedUpload] = useState(false); // тикче „няма забранени материали“ — нов документ
+  const [confirmedReplace, setConfirmedReplace] = useState(false); // същото — нова версия
 
   const visible = documents.filter((d) => d.status === view);
   const activeCount = documents.filter((d) => d.status === "active").length;
@@ -161,9 +212,10 @@ export function KBDocuments({
   }
 
   async function handleUpload() {
-    if (!file) return;
+    if (!file || !confirmedUpload) return;
     const form = new FormData();
     form.set("file", file);
+    form.set(KB_FORBIDDEN_CONFIRM_FIELD, "true");
     if (title.trim()) form.set("title", title.trim());
     if (category) form.set("category", category);
     const ok = await send(form, "upload", (r) => `Документът е качен и индексиран (${r.chunks} откъса).`);
@@ -171,17 +223,21 @@ export function KBDocuments({
       setFile(null);
       setTitle("");
       setCategory("");
+      setConfirmedUpload(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   async function handleReplace(f: File) {
-    if (!replaceId) return;
+    if (!replaceId || !confirmedReplace) return;
     const form = new FormData();
     form.set("file", f);
     form.set("documentId", replaceId);
+    form.set(KB_FORBIDDEN_CONFIRM_FIELD, "true");
+    setReplaceDialog(false);
     await send(form, replaceId, (r) => `Качена е версия ${r.version} (${r.chunks} откъса). Предишната е запазена в историята.`);
     setReplaceId(null);
+    setConfirmedReplace(false);
     if (replaceRef.current) replaceRef.current.value = "";
   }
 
@@ -266,8 +322,14 @@ export function KBDocuments({
             </Select>
           </div>
         </div>
+        <ForbiddenMaterialsConfirm
+          id="kb-confirm-upload"
+          checked={confirmedUpload}
+          onChange={setConfirmedUpload}
+          disabled={busy !== null}
+        />
         <div className="flex items-center gap-3">
-          <Button onClick={handleUpload} disabled={!file || busy !== null} className="gap-2">
+          <Button onClick={handleUpload} disabled={!file || !confirmedUpload || busy !== null} className="gap-2">
             {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             {busy === "upload" ? "Качване и индексиране…" : "Качи"}
           </Button>
@@ -364,7 +426,13 @@ export function KBDocuments({
                         variant="outline"
                         size="sm"
                         disabled={busy !== null}
-                        onClick={() => { setReplaceId(d.id); replaceRef.current?.click(); }}
+                        onClick={() => {
+                          // Първо потвърждение за забранените материали, после избор на файл.
+                          setReplaceId(d.id);
+                          setReplaceTitle(d.title);
+                          setConfirmedReplace(false);
+                          setReplaceDialog(true);
+                        }}
                         className="gap-1"
                       >
                         {busy === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -479,6 +547,39 @@ export function KBDocuments({
           </ul>
         )}
       </div>
+
+      {/* Нова версия: потвърждение за забранени материали, после избор на файл */}
+      <AlertDialog
+        open={replaceDialog}
+        onOpenChange={(o) => { if (!o) { setReplaceDialog(false); setReplaceId(null); setConfirmedReplace(false); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Нова версия на „{replaceTitle}“</AlertDialogTitle>
+            <AlertDialogDescription>
+              Преди да изберете файл, прочетете списъка и потвърдете.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ForbiddenMaterialsConfirm
+            id="kb-confirm-replace"
+            checked={confirmedReplace}
+            onChange={setConfirmedReplace}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отказ</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!confirmedReplace}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmedReplace) replaceRef.current?.click();
+              }}
+            >
+              <Upload className="h-4 w-4" />
+              Избери файл
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={confirm !== null}
