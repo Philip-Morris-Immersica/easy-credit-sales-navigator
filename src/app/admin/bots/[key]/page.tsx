@@ -63,8 +63,11 @@ export default async function BotDetailPage({
     "gpt-4.1",
     "gpt-4o-mini",
     "gpt-4o",
-    "gpt-4.1-nano",
     "o4-mini",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-6-sol",
+    "gpt-6-luna",
   ];
   const dbModels = models.map((m) => m.model);
   const availableModels = [...new Set([...CORE_MODELS, ...dbModels])];

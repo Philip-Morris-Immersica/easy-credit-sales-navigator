@@ -13,6 +13,7 @@ import {
   knowledgeChunks,
 } from "@/db/schema";
 import { computeCost } from "@/lib/cost";
+import { getModelCallOptions } from "@/lib/model-params";
 import {
   buildKnowledgePromptBlock,
   createKnowledgeTools,
@@ -130,8 +131,8 @@ export async function POST(req: Request) {
       role: m.role as "user" | "assistant",
       content: m.content,
     })),
-    temperature: bot.temperature,
-    maxOutputTokens: bot.maxTokens,
+    // temperature / reasoning / лимит според модела (gpt-4.1 — непроменено).
+    ...getModelCallOptions(bot.model, "chat", bot.temperature, bot.maxTokens),
     // Само Роби търси в базата знания; симулациите на клиенти нямат инструменти.
     ...(isConsultant
       ? { tools: createKnowledgeTools(searchLog), stopWhen: stepCountIs(3) }

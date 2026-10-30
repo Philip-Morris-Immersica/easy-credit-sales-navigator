@@ -11,14 +11,17 @@ import type { ModelPricing } from "@/db/schema";
 const DEFAULT_MODELS: ModelPricing[] = [
   { model: "gpt-4.1", inputPer1k: 0.002, outputPer1k: 0.008 },
   { model: "gpt-4.1-mini", inputPer1k: 0.0004, outputPer1k: 0.0016 },
-  { model: "gpt-4.1-nano", inputPer1k: 0.0001, outputPer1k: 0.0004 },
   { model: "gpt-4.5", inputPer1k: 0.075, outputPer1k: 0.15 },
   { model: "gpt-4.5-mini", inputPer1k: 0.002, outputPer1k: 0.008 },
   { model: "gpt-4o", inputPer1k: 0.0025, outputPer1k: 0.01 },
   { model: "gpt-4o-mini", inputPer1k: 0.00015, outputPer1k: 0.0006 },
   { model: "o4-mini", inputPer1k: 0.0011, outputPer1k: 0.0044 },
-  { model: "gpt-5.4", inputPer1k: 0.005, outputPer1k: 0.02 },
-  { model: "gpt-5.4-mini", inputPer1k: 0.001, outputPer1k: 0.004 },
+  // Официални цени от https://developers.openai.com/api/docs/pricing (на 1M токена:
+  // 5.4 $2.50/$15, 5.4 mini $0.75/$4.50, 6 Sol $2/$10, 6 Luna $0.10/$0.50).
+  { model: "gpt-5.4", inputPer1k: 0.0025, outputPer1k: 0.015 },
+  { model: "gpt-5.4-mini", inputPer1k: 0.00075, outputPer1k: 0.0045 },
+  { model: "gpt-6-sol", inputPer1k: 0.002, outputPer1k: 0.01 },
+  { model: "gpt-6-luna", inputPer1k: 0.0001, outputPer1k: 0.0005 },
 ];
 
 interface ConfigurationFormProps {
