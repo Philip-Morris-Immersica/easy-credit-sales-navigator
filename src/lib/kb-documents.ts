@@ -12,6 +12,7 @@ import { and, desc, eq, notInArray } from "drizzle-orm";
 import { openai } from "@ai-sdk/openai";
 import { embed, embedMany } from "ai";
 import { cosineDistance, gt, sql } from "drizzle-orm";
+import { extractExactTokens, mergeHits, rankExactHits } from "@/lib/kb-exact";
 
 // ─── Константи ────────────────────────────────────────────────────────────────
 
@@ -100,9 +101,37 @@ export function normalizeCategory(value: string | undefined | null): KbCategory 
   return (KB_CATEGORIES as readonly string[]).includes(v) ? (v as KbCategory) : null;
 }
 
-/** Опростява HTML от mammoth до Markdown-подобен текст: заглавия (#/##), списъци, абзаци, редове от таблица. */
+/**
+ * Таблица от mammoth → Markdown таблица: ЕДИН ред от таблицата = ЕДИН текстов ред
+ * (`| ГПР | Годишен процент … |`), със заглавен ред и разделител. Клетките са плоски:
+ * абзаците, <br> и списъците вътре в клетка се слепват с интервал — иначе празният ред
+ * от `</p>` разцепва реда на части и чънкването го реже на произволно място.
+ * Знаците `&…;` се оставят кодирани — декодират се накрая, заедно с останалия текст.
+ */
+function tableHtmlToMarkdown(tableHtml: string): string {
+  const rows: string[][] = [];
+  for (const tr of tableHtml.match(/<tr[\s>][\s\S]*?<\/tr>/gi) ?? []) {
+    const cells = (tr.match(/<t[dh][\s>][\s\S]*?<\/t[dh]>/gi) ?? []).map((cell) =>
+      cell
+        .replace(/<\/(p|li)>|<br\s*\/?>/gi, " ")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\s+/g, " ")
+        .replace(/\|/g, "\\|")
+        .trim()
+    );
+    if (cells.some((c) => c !== "")) rows.push(cells);
+  }
+  if (rows.length === 0) return "";
+  const width = Math.max(...rows.map((r) => r.length));
+  const line = (r: string[]) => `| ${Array.from({ length: width }, (_, i) => r[i] ?? "").join(" | ")} |`;
+  const [head, ...body] = rows;
+  return `\n\n${[line(head), `|${" --- |".repeat(width)}`, ...body.map(line)].join("\n")}\n\n`;
+}
+
+/** Опростява HTML от mammoth до Markdown-подобен текст: заглавия (#/##), списъци, абзаци, таблици. */
 export function htmlToMarkdownText(html: string): string {
   return html
+    .replace(/<table[\s>][\s\S]*?<\/table>/gi, (t) => tableHtmlToMarkdown(t))
     .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, lvl: string, inner: string) => {
       const marks = Number(lvl) === 1 ? "#" : Number(lvl) === 2 ? "##" : "###";
       return `\n\n${marks} ${inner.replace(/<[^>]+>/g, "").trim()}\n\n`;
@@ -111,8 +140,6 @@ export function htmlToMarkdownText(html: string): string {
     .replace(/<\/(ul|ol)>/gi, "\n\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/t[dh]>/gi, " | ")
-    .replace(/<\/tr>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
@@ -120,7 +147,6 @@ export function htmlToMarkdownText(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, "&")
-    .replace(/[ \t]*\|[ \t]*\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -224,12 +250,65 @@ function splitSections(text: string): Section[] {
   return sections.map((s) => ({ ...s, body: s.body.trim() }));
 }
 
-/** Реже дълъг текст по абзаци; „Въпрос“ и „Отговор“ остават заедно. */
+const isTableLine = (line: string) => /^\s*\|/.test(line);
+const isTableSeparator = (line: string) => /^\s*\|[\s:|-]+\|\s*$/.test(line) && line.includes("-");
+/** Блок от редове, които всички са редове на Markdown таблица. */
+const isTableBlock = (block: string) => block.split("\n").every(isTableLine);
+
+/** Максимален размер на група редове от дълга таблица — по-малка група = по-точен embedding. */
+const MAX_TABLE_CHUNK_CHARS = 1000;
+
+/**
+ * Реже дълга таблица на групи от цели редове; заглавният ред (и разделителят) се повтарят
+ * във всяка група. Ред НИКОГА не се разцепва — дори да е по-дълъг от `max`, остава сам в група.
+ */
+export function splitTable(block: string, max: number): string[] {
+  const lines = block.split("\n").filter((l) => l.trim() !== "");
+  let header: string[] = [];
+  let rows = lines;
+  if (lines.length >= 2 && isTableSeparator(lines[1])) {
+    header = lines.slice(0, 2);
+    rows = lines.slice(2);
+  }
+  const head = header.join("\n");
+  const groups: string[] = [];
+  let cur: string[] = [];
+  let curLen = head.length;
+  for (const row of rows) {
+    if (cur.length > 0 && curLen + 1 + row.length > max) {
+      groups.push([...header, ...cur].join("\n"));
+      cur = [];
+      curLen = head.length;
+    }
+    cur.push(row);
+    curLen += 1 + row.length;
+  }
+  if (cur.length > 0) groups.push([...header, ...cur].join("\n"));
+  return groups;
+}
+
+/** Абзаци + таблици като отделни единици (таблица, залепена за текст без празен ред, се отделя). */
+function splitUnits(body: string): string[] {
+  const units: string[] = [];
+  for (const p of body.split(/\n{2,}/)) {
+    const lines = p.split("\n");
+    if (!lines.some(isTableLine) || lines.every(isTableLine)) { units.push(p); continue; }
+    let run: string[] = [];
+    let runIsTable = isTableLine(lines[0]);
+    for (const l of lines) {
+      if (isTableLine(l) !== runIsTable) { units.push(run.join("\n")); run = []; runIsTable = !runIsTable; }
+      run.push(l);
+    }
+    if (run.length) units.push(run.join("\n"));
+  }
+  return units;
+}
+
+/** Реже дълъг текст по абзаци; „Въпрос“ и „Отговор“ остават заедно; редовете на таблица никога не се разцепват. */
 function splitLong(body: string, max: number): string[] {
   if (body.length <= max) return [body];
-  const paragraphs = body.split(/\n{2,}/);
   const units: string[] = [];
-  for (const p of paragraphs) {
+  for (const p of splitUnits(body)) {
     const isAnswer = /^\s*(\*\*|_)?\s*(отговор|отг)\b/i.test(p);
     if (isAnswer && units.length > 0) units[units.length - 1] += "\n\n" + p;
     else units.push(p);
@@ -238,6 +317,11 @@ function splitLong(body: string, max: number): string[] {
   let buf = "";
   const flush = () => { if (buf.trim()) out.push(buf.trim()); buf = ""; };
   for (const unit of units) {
+    if (unit.length > MAX_TABLE_CHUNK_CHARS && isTableBlock(unit)) {
+      flush();
+      out.push(...splitTable(unit, MAX_TABLE_CHUNK_CHARS));
+      continue;
+    }
     if (unit.length > max) {
       flush();
       // Много дълъг абзац: режем по изречения, накрая твърдо.
@@ -575,7 +659,14 @@ export interface SearchHit {
   title: string | null;
   content: string;
   similarity: number;
+  /** true — откъсът съдържа съкращението от заявката като цяла дума (точно съвпадение). */
+  exact?: boolean;
 }
+
+/** Колко откъса с точно съвпадение се добавят най-много към семантичните. */
+const EXACT_LIMIT = 4;
+/** Грубият SQL предфилтър връща най-много толкова кандидати; точната проверка е в JS. */
+const EXACT_PREFILTER_LIMIT = 200;
 
 const SEARCH_DEFAULTS: Record<KnowledgeSource, { threshold: number; limit: number }> = {
   // Праговете са мерени върху реални заявки на български (text-embedding-3-small дава
@@ -584,7 +675,58 @@ const SEARCH_DEFAULTS: Record<KnowledgeSource, { threshold: number; limit: numbe
   tree: { threshold: 0.4, limit: 5 },
 };
 
+/**
+ * Хибридно търсене: точно съвпадение на цяла дума за съкращения (ГПР, ППЗ, Bh-score)
+ * + семантично. Точните са първи; дубликатите се махат. Ако заявката няма съкращения,
+ * резултатът е същият като при чисто семантично търсене.
+ */
 export async function searchKnowledge(query: string, source: KnowledgeSource): Promise<SearchHit[]> {
+  const { limit } = SEARCH_DEFAULTS[source];
+  const [semantic, exact] = await Promise.allSettled([
+    searchSemantic(query, source),
+    searchExact(query, source),
+  ]);
+  const exactHits = exact.status === "fulfilled" ? exact.value : [];
+  if (semantic.status === "rejected") {
+    if (exactHits.length > 0) return exactHits; // OpenAI не отговаря, но точното съвпадение е налице
+    throw semantic.reason;
+  }
+  return mergeHits(exactHits, semantic.value, limit);
+}
+
+/** Точно съвпадение: груб предфилтър в SQL (strpos — не зависи от локала), цяла дума в JS. */
+async function searchExact(query: string, source: KnowledgeSource): Promise<SearchHit[]> {
+  const tokens = extractExactTokens(query);
+  if (tokens.length === 0) return [];
+  const anyToken = sql.join(
+    tokens.map((t) =>
+      t.caseInsensitive
+        ? sql`strpos(lower(${knowledgeChunks.content}), ${t.text.toLowerCase()}) > 0`
+        : sql`strpos(${knowledgeChunks.content}, ${t.text}) > 0`
+    ),
+    sql` or `
+  );
+  const rows = await db
+    .select({ title: knowledgeChunks.title, content: knowledgeChunks.content })
+    .from(knowledgeChunks)
+    .leftJoin(kbDocuments, eq(knowledgeChunks.documentId, kbDocuments.id))
+    .where(
+      and(
+        eq(knowledgeChunks.source, source),
+        source === "document" ? eq(kbDocuments.status, "active") : undefined,
+        sql`(${anyToken})`
+      )
+    )
+    .limit(EXACT_PREFILTER_LIMIT);
+  return rankExactHits(rows, tokens, EXACT_LIMIT).map((h) => ({
+    title: h.title,
+    content: h.content,
+    similarity: 1,
+    exact: true,
+  }));
+}
+
+export async function searchSemantic(query: string, source: KnowledgeSource): Promise<SearchHit[]> {
   const { threshold, limit } = SEARCH_DEFAULTS[source];
   const { embedding } = await embed({
     model: openai.embedding(EMBEDDING_MODEL),
