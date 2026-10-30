@@ -2,6 +2,7 @@ import db from "@/db";
 import { users, conversations, messages, bots, analyses } from "@/db/schema";
 import { eq, gte, lte, and, count, sum, gt, asc } from "drizzle-orm";
 import { zonedDayStart, zonedDayEnd } from "@/lib/date-range";
+import { rollupTotals, rollupByUser } from "@/lib/cost-rollups";
 
 export interface ReportOptions {
   from: string;
@@ -14,6 +15,12 @@ export async function generateReportData(opts: ReportOptions) {
   const fromDate = zonedDayStart(opts.from);
   const toDate = zonedDayEnd(opts.to);
   const anonymize = opts.includes.includes("anonymize");
+  // Разходи на изтритите след 12 месеца разговори (Т6) — справките за минали
+  // периоди не трябва да се променят след автоматичното изтриване.
+  const rolled = await rollupTotals(opts.from, opts.to);
+  const rolledByUser = new Map(
+    (await rollupByUser(opts.from, opts.to)).map((r) => [r.userId, r.cost])
+  );
 
   const result: Record<string, unknown> = {};
 
@@ -42,9 +49,9 @@ export async function generateReportData(opts: ReportOptions) {
     result.summary = {
       newUsers: newUsers.count,
       conversations: convCount.count,
-      messages: msgStats.count,
+      messages: msgStats.count + rolled.messages,
       analyses: analysisCount.count,
-      totalCost: parseFloat(msgStats.totalCost ?? "0"),
+      totalCost: parseFloat(msgStats.totalCost ?? "0") + rolled.cost,
     };
   }
 
@@ -97,7 +104,7 @@ export async function generateReportData(opts: ReportOptions) {
           messages: costs?.totalMessages ?? 0,
           tokensIn: parseInt(String(costs?.tokensIn ?? "0")),
           tokensOut: parseInt(String(costs?.tokensOut ?? "0")),
-          cost: parseFloat(String(costs?.totalCost ?? "0")),
+          cost: parseFloat(String(costs?.totalCost ?? "0")) + (rolledByUser.get(r.id) ?? 0),
         };
       });
   }
