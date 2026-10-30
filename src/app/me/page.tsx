@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, BarChart2, Clock, Dumbbell } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ExportResultsButton } from "@/components/ExportResultsButton";
 
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("bg", { day: "numeric", month: "short", year: "numeric" });
@@ -60,12 +61,15 @@ export default async function MePage() {
             </h1>
             <p className="t-body text-muted-foreground mt-1">Твоят обучителен напредък</p>
           </div>
-          <Link
-            href="/"
-            className={cn(buttonVariants({ size: "sm" }), "shrink-0 bg-primary text-white hover:bg-primary/90")}
-          >
-            Към навигатора
-          </Link>
+          <div className="flex shrink-0 flex-wrap items-start justify-end gap-2">
+            <ExportResultsButton href="/api/me/export" />
+            <Link
+              href="/"
+              className={cn(buttonVariants({ size: "sm" }), "shrink-0 bg-primary text-white hover:bg-primary/90")}
+            >
+              Към навигатора
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

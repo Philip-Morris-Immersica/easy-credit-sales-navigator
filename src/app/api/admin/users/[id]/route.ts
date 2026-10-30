@@ -1,8 +1,9 @@
 import { auth } from "@/auth";
 import db from "@/db";
-import { users, auditLog } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { users, auditLog, conversations, messages, analyses } from "@/db/schema";
+import { eq, count } from "drizzle-orm";
 import { normalizeName } from "@/lib/names";
+import { getAdminApiUser } from "@/lib/auth-helpers";
 
 export async function PATCH(
   req: Request,
@@ -63,6 +64,90 @@ export async function PATCH(
   if (!didSomething) {
     return Response.json({ error: "Invalid payload" }, { status: 400 });
   }
+
+  return Response.json({ success: true });
+}
+
+/**
+ * Окончателно изтриване на потребител (Т5).
+ *
+ * Базата трие каскадно: сесии, акаунти, токени, разговори → съобщения → анализи.
+ * Документите в „База знания", версиите на ботовете и журналът с действията
+ * НЕ се трият — колоните `uploaded_by` / `changed_by` / `actor_id` са `set null`.
+ *
+ * Изисква в тялото `confirmEmail` да съвпада с имейла на потребителя
+ * (двойното потвърждение се налага и на сървъра, не само в интерфейса).
+ */
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const actor = await getAdminApiUser();
+  if (!actor) return Response.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+
+  if (id === actor.id) {
+    return Response.json(
+      { error: "Не можете да изтриете собствения си акаунт." },
+      { status: 400 }
+    );
+  }
+
+  const target = await db
+    .select({ id: users.id, email: users.email, role: users.role })
+    .from(users)
+    .where(eq(users.id, id))
+    .then((r) => r[0]);
+  if (!target) return Response.json({ error: "Not found" }, { status: 404 });
+
+  // Същото правило като при ролите: admin не пипа it.
+  if (actor.role === "admin" && target.role === "it") {
+    return Response.json(
+      { error: "Нямате право да изтривате IT потребители." },
+      { status: 403 }
+    );
+  }
+
+  const body = (await req.json().catch(() => ({}))) as { confirmEmail?: unknown };
+  const confirmEmail =
+    typeof body.confirmEmail === "string" ? body.confirmEmail.trim().toLowerCase() : "";
+  if (confirmEmail !== target.email.trim().toLowerCase()) {
+    return Response.json(
+      { error: "Имейлът за потвърждение не съвпада." },
+      { status: 400 }
+    );
+  }
+
+  // Броим преди изтриването — за журнала (без лични данни).
+  const [convCount] = await db
+    .select({ n: count() })
+    .from(conversations)
+    .where(eq(conversations.userId, id));
+  const [msgCount] = await db
+    .select({ n: count() })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(eq(conversations.userId, id));
+  const [anCount] = await db
+    .select({ n: count() })
+    .from(analyses)
+    .innerJoin(conversations, eq(analyses.conversationId, conversations.id))
+    .where(eq(conversations.userId, id));
+
+  await db.delete(users).where(eq(users.id, id));
+
+  // Само броячи — без име, имейл и съдържание.
+  await db.insert(auditLog).values({
+    actorId: actor.id,
+    action: "user.delete",
+    target: id,
+    meta: {
+      conversations: convCount?.n ?? 0,
+      messages: msgCount?.n ?? 0,
+      analyses: anCount?.n ?? 0,
+    },
+  });
 
   return Response.json({ success: true });
 }
