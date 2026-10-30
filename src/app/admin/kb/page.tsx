@@ -4,6 +4,7 @@ import { kbDocuments, kbDocumentVersions, users } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { KBDocuments, type KBDocItem } from "@/components/admin/KBDocuments";
 import { TEMPLATES } from "@/lib/kb-templates";
+import { KB_FORBIDDEN_MATERIALS } from "@/lib/kb-rules";
 
 export default async function AdminKBPage() {
   await requireAdmin();
@@ -91,8 +92,15 @@ export default async function AdminKBPage() {
             сам допълва празнините.
           </li>
           <li>
-            <strong>Не качвайте:</strong> лични данни на клиенти, снимки или сканирани таблици, PDF файлове, пароли. Таблици във
-            Word се четат по-зле от списъци.
+            <strong>Забранени материали — не качвайте:</strong>
+            <ul className="list-disc list-inside ml-5 mt-1 space-y-0.5">
+              {KB_FORBIDDEN_MATERIALS.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </li>
+          <li>
+            PDF файлове не се четат. Таблици във Word се четат по-зле от списъци.
           </li>
           <li>
             При промяна използвайте „Нова версия“ — предишната се пази (последните 10) и може да се върне или изтрие от

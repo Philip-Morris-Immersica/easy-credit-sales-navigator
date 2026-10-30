@@ -6,6 +6,7 @@ import {
   parseUploadedFile,
   replaceDocument,
 } from "@/lib/kb-documents";
+import { KB_FORBIDDEN_CONFIRM_ERROR, KB_FORBIDDEN_CONFIRM_FIELD } from "@/lib/kb-rules";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -16,6 +17,7 @@ export const maxDuration = 120;
  *   title       — по избор (иначе от метаданните или от името на файла)
  *   category    — продукт | процедура | политика | фирмена информация
  *   documentId  — ако е зададено, файлът е НОВА ВЕРСИЯ на този документ
+ *   confirmNoForbidden — "true": потвърждение, че няма забранени материали (задължително и за нова версия)
  */
 export async function POST(req: Request) {
   const user = await getAdminApiUser();
@@ -23,6 +25,8 @@ export async function POST(req: Request) {
 
   try {
     const form = await req.formData();
+    // Потвърждението се проверява и на сървъра — бутонът в екрана не е достатъчна защита.
+    if (form.get(KB_FORBIDDEN_CONFIRM_FIELD) !== "true") throw new KbError(KB_FORBIDDEN_CONFIRM_ERROR);
     const file = form.get("file");
     if (!(file instanceof File)) throw new KbError("Липсва файл.");
 
@@ -43,6 +47,7 @@ export async function POST(req: Request) {
         mimeType: file.type,
         parsed,
         actorId: user.id,
+        forbiddenConfirmed: true,
       });
       return Response.json({ success: true, id: doc.id, version: doc.version, chunks });
     }
@@ -58,6 +63,7 @@ export async function POST(req: Request) {
       mimeType: file.type,
       parsed,
       actorId: user.id,
+      forbiddenConfirmed: true,
     });
     return Response.json({ success: true, id: doc.id, version: doc.version, chunks });
   } catch (e) {
