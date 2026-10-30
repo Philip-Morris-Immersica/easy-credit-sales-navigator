@@ -4,6 +4,7 @@ import { users, auditLog, conversations, messages, analyses } from "@/db/schema"
 import { eq, count } from "drizzle-orm";
 import { normalizeName } from "@/lib/names";
 import { getAdminApiUser } from "@/lib/auth-helpers";
+import { costRollupsTableExists, purgeUserQuery } from "@/lib/retention";
 
 export async function PATCH(
   req: Request,
@@ -135,6 +136,11 @@ export async function DELETE(
     .innerJoin(conversations, eq(analyses.conversationId, conversations.id))
     .where(eq(conversations.userId, id));
 
+  // Разходите минават в cost_rollups преди триенето, иначе изчезват от справките.
+  // Преди миграцията 0001_cost_rollups таблицата я няма — тогава каскадата трие и тях.
+  if (await costRollupsTableExists()) {
+    await db.execute(purgeUserQuery(id));
+  }
   await db.delete(users).where(eq(users.id, id));
 
   // Само броячи — без име, имейл и съдържание.

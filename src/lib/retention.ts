@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import db from "@/db";
 import { auditLog } from "@/db/schema";
 import { APP_TIMEZONE } from "@/lib/date-range";
@@ -86,13 +86,26 @@ export async function previewRetention(cutoff: Date): Promise<
  */
 export function purgeBatchQuery(cutoff: Date, limit: number) {
   const iso = cutoff.toISOString();
+  return purgeQuery(sql`
+    SELECT id FROM conversations
+    WHERE started_at < ${iso}::timestamp
+    ORDER BY started_at
+    LIMIT ${limit}
+  `);
+}
+
+/**
+ * Същото като партидата на срока, но за всички разговори на един потребител —
+ * вика се преди окончателното изтриване на акаунта (Т5), за да не изчезнат
+ * разходите му от справките.
+ */
+export function purgeUserQuery(userId: string) {
+  return purgeQuery(sql`SELECT id FROM conversations WHERE user_id = ${userId}`);
+}
+
+function purgeQuery(batch: SQL) {
   return sql`
-    WITH batch AS (
-      SELECT id FROM conversations
-      WHERE started_at < ${iso}::timestamp
-      ORDER BY started_at
-      LIMIT ${limit}
-    ),
+    WITH batch AS (${batch}),
     agg AS (
       SELECT
         (m.created_at AT TIME ZONE 'UTC' AT TIME ZONE ${APP_TIMEZONE})::date AS day,
