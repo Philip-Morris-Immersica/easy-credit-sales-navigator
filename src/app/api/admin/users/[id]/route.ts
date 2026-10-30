@@ -19,12 +19,20 @@ export async function PATCH(
   const body = (await req.json()) as { active?: unknown; name?: unknown };
 
   const user = await db
-    .select({ id: users.id })
+    .select({ id: users.id, role: users.role })
     .from(users)
     .where(eq(users.id, id))
     .then((r) => r[0]);
 
   if (!user) return Response.json({ error: "Not found" }, { status: 404 });
+
+  // Същото правило като при ролите и изтриването: admin не пипа it.
+  if (session.user.role === "admin" && user.role === "it") {
+    return Response.json(
+      { error: "Нямате право да променяте IT потребители." },
+      { status: 403 }
+    );
+  }
 
   let didSomething = false;
 

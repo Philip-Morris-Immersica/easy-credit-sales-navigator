@@ -103,6 +103,11 @@ export function purgeUserQuery(userId: string) {
   return purgeQuery(sql`SELECT id FROM conversations WHERE user_id = ${userId}`);
 }
 
+/** Един разговор — при ръчно изтриване от „Разговори“. */
+export function purgeConversationQuery(conversationId: string) {
+  return purgeQuery(sql`SELECT id FROM conversations WHERE id = ${conversationId}`);
+}
+
 function purgeQuery(batch: SQL) {
   return sql`
     WITH batch AS (${batch}),

@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import db from "../../src/db";
 import { users } from "../../src/db/schema";
 import { chunkDocument, getDocument, parseUploadedFile, replaceDocument } from "../../src/lib/kb-documents";
-import type { KbCategory } from "../../src/lib/kb-documents";
+import type { KbCategory } from "../../src/lib/kb-categories";
 
 const DOC_ID = "4ceaaa53-af39-4317-90e3-efbf10cb3199";
 const FILE = "C:/Users/Work Account/Downloads/Речник - съкращения и термини.docx";

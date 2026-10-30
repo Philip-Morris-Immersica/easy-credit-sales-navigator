@@ -150,7 +150,7 @@ export default async function ConversationPage({
                     : "bg-muted text-foreground rounded-bl-sm"
                 )}>
                   <div className="mb-0.5 text-xs opacity-60">
-                    {msg.role === "user" ? "Консултант" : "Клиент"}
+                    {msg.role === "user" ? "Консултант" : conv.kind === "consultant" ? "Роби" : "Клиент"}
                   </div>
                   {msg.content}
                   {isAdminOrIT && <SearchTrace meta={msg.meta} />}
