@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, TrendingUp, TrendingDown, Star, Download } from "lucide-react";
+import { TRAINING_ONLY_NOTE } from "@/lib/training-note";
 
 interface Criterion {
   name: string;
@@ -97,6 +98,7 @@ function buildAnalysisHtml(analysis: AnalysisData, title: string): string {
   <div class="score-box">
     <div><span class="score-value">${score.toFixed(1)}</span><span class="score-suffix">/10</span></div>
     ${analysis.summary ? `<p class="summary">${escapeHtml(analysis.summary)}</p>` : ""}
+    <p class="meta" style="margin:12px 0 0">${escapeHtml(TRAINING_ONLY_NOTE)}</p>
   </div>
 
   ${criteriaHtml ? `<h2>Критерии за оценка</h2>${criteriaHtml}` : ""}
@@ -210,6 +212,7 @@ export function AnalysisFeedback({
         {analysis.summary && (
           <p className="t-body text-foreground/80 max-w-md mx-auto">{analysis.summary}</p>
         )}
+        <p className="t-small text-muted-foreground">{TRAINING_ONLY_NOTE}</p>
       </div>
 
       {/* Criteria */}

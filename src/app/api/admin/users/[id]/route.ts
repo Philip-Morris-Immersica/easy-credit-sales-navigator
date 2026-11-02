@@ -1,10 +1,12 @@
 import { auth } from "@/auth";
 import db from "@/db";
 import { users, auditLog, conversations, messages, analyses } from "@/db/schema";
-import { eq, count } from "drizzle-orm";
+import { and, eq, count } from "drizzle-orm";
 import { normalizeName } from "@/lib/names";
 import { getAdminApiUser } from "@/lib/auth-helpers";
 import { costRollupsTableExists, purgeUserQuery } from "@/lib/retention";
+
+const DELETED_USER_LABEL = "изтрит потребител";
 
 export async function PATCH(
   req: Request,
@@ -150,6 +152,17 @@ export async function DELETE(
     await db.execute(purgeUserQuery(id));
   }
   await db.delete(users).where(eq(users.id, id));
+
+  // Старите записи в журнала не трябва да пазят имейла и името на изтрития:
+  // смяната на роля пише имейла в `target`, преименуването — името в `meta`.
+  await db
+    .update(auditLog)
+    .set({ target: DELETED_USER_LABEL })
+    .where(and(eq(auditLog.action, "user.role.set"), eq(auditLog.target, target.email)));
+  await db
+    .update(auditLog)
+    .set({ meta: { name: DELETED_USER_LABEL } })
+    .where(and(eq(auditLog.action, "user.rename"), eq(auditLog.target, id)));
 
   // Само броячи — без име, имейл и съдържание.
   await db.insert(auditLog).values({

@@ -14,6 +14,7 @@ import ExcelJS from "exceljs";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import db from "@/db";
 import { users, conversations, messages, analyses, bots } from "@/db/schema";
+import { TRAINING_ONLY_NOTE } from "@/lib/training-note";
 
 /** Срок на съхранение (месеци) — показва се в листа „Информация“. Синхронизирай с Т6. */
 export const RETENTION_MONTHS = 12;
@@ -389,7 +390,7 @@ export async function buildUserExport(
       ["Брой реплики", messageCount],
       ["Скала на оценките", "от 1 до 10; цветът в таблицата: зелено = 8 и повече, жълто = 6 до 8, червено = под 6"],
       ["Не са включени", "Разговорите със служебния асистент Роби — файлът съдържа само симулациите."],
-      ["Важно", "Само за обучение и развитие, не е оценка на работата."],
+      ["Важно", TRAINING_ONLY_NOTE],
       ["Срок на съхранение", `Разговорите, стенограмите и анализите се пазят ${RETENTION_MONTHS} месеца от датата на провеждане на разговора и след това се изтриват окончателно.`],
     ];
     for (const [k, v] of info) {
