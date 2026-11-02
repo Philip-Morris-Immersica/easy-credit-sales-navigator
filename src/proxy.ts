@@ -12,6 +12,8 @@ export const proxy = auth((req) => {
   // Always allow NextAuth internal endpoints and static assets.
   if (
     pathname.startsWith("/api/auth") ||
+    // Нощните задачи на Vercel идват без сесия; защитени са с CRON_SECRET в самия route.
+    pathname.startsWith("/api/cron/") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/logos") ||
     pathname.startsWith("/avatars") ||
